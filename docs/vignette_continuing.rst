@@ -56,23 +56,33 @@ The selection was, indeed, strong.
 Recapitation
 ************
 
-Ok, now let's do phase (1).
-This just means recapitating and mutating the result:
+Ok, now let's do phase (1), recapitating and mutating the result.
+We'll add SLiM mutations with "mutation type" 0
+(so in SLiM these would be called type `m0`),
+so first we check that all the existing mutations are of a different type.
 
 .. code-block:: python
 
    rts = ts.recapitate(Ne=1000, recombination_rate=1e-8, random_seed=6)
-   rts = pyslim.SlimTreeSequence(msprime.mutate(rts, rate=1e-8, random_seed=7))
+   mut_types = set([md['mutation_type'] for mut in ts.mutations() for md in mut.metadata['mutation_list']])
+   print(f"Keeping {rts.num_mutations} existing mutations of type(s) {mut_types}.")
+   assert 0 not in mut_types
+   rts = pyslim.SlimTreeSequence(
+            msprime.sim_mutations(
+                rts, rate=1e-8, random_seed=7, keep=True, add_ancestral=True,
+                model=msprime.SLiMMutationModel(type=0))
+            )
 
    p = rts.sample_count_stat([rts.samples()], lambda x: x/20000, 1, windows='sites', strict=False)
-   print(f"There are {rts.num_sites} segregating sites, of which {np.sum(p > 0.25)} "
+   print(f"After mutation, there are {rts.num_sites} segregating sites, of which {np.sum(p > 0.25)} "
          f"are at frequency above 25%, and {np.sum(p > 0.05)} are above 5%.")
 
 Now, there are more segregating sites - neutral ones.
 
 .. code-block:: none
 
-   There are 81031 segregating sites, of which 243 are at frequency above 25%, and 1311 are above 5%.
+   Keeping 66693 existing mutations of type(s) {1}.
+   After mutation, there are 81031 segregating sites, of which 243 are at frequency above 25%, and 1311 are above 5%.
 
 
 *************************
@@ -103,19 +113,25 @@ then remove it before the next step, using the ``keep_input_roots=True`` argumen
 .. code-block:: python
 
    new_time = 1000
-   popcons = [msprime.PopulationConfiguration(
-                        sample_size=20000, initial_size=10000),
-              msprime.PopulationConfiguration(
-                        sample_size=1, initial_size=1)]
-   new_ts = msprime.simulate(population_configurations=popcons,
+   demog_model = msprime.Demography()
+   demog_model.add_population(initial_size=10000, name='real')
+   demog_model.add_population(initial_size=10000, name='fake')
+   new_ts = msprime.sim_ancestry(
+                  samples={'real' : 10000, 'fake' : 1},
+                  demography=demog_model,
                   end_time=new_time,
-                  length=rts.sequence_length,
-                  mutation_rate=1e-8, recombination_rate=1e-8,
+                  sequence_length=rts.sequence_length,
+                  recombination_rate=1e-8,
                   random_seed=9)
+   new_ts = msprime.sim_mutations(
+                     new_ts, rate=1e-8, random_seed=10, keep=True, add_ancestral=True,
+                     model=msprime.SLiMMutationModel(type=0)
+            )
    new_tables = new_ts.tables
-   # check that the spurious sample is number 20000
-   assert 20000 in new_ts.samples()
-   assert new_ts.node(20000).population == 1
+   # check that the spurious samples are 20000 and 20001
+   for n in (20000, 20001):
+       assert n in new_ts.samples()
+       assert new_ts.node(n).population == 1
    new_tables.simplify(samples=np.arange(20000), keep_input_roots=True)
 
 *(b)* Now we'll pull out the IDs of the nodes from 1000 generations ago,

@@ -36,7 +36,7 @@ extract whole-genome genotype data for only 1,000 individuals. Here's one way to
    we wish to sample.
    **Important: this should probably come *after* recapitation (see below).**
 
-3. :meth:`msprime.mutate` : Adds neutral mutations to the tree sequence.
+3. :meth:`msprime.sim_mutations` : Adds neutral mutations to the tree sequence.
 
 
 These steps are described below. First, to get something to work with,
@@ -111,25 +111,21 @@ msprime also needs vectors of positions and rates, but the format is slightly di
 To use the SLiM values for msprime, we need to do three things:
 
 1. Add a 0 at the beginning of the positions,
-2. add a 0 at the end of the rates, and
-3. add 1 to the final value in "positions".
+2. add 1 to the last position.
 
 The reason why msprime "positions" must start with 0 (step 1) is that in SLiM,
 a position or "end" indicates the end of a recombination block such that its associated
 "rate" applies to everything to the left of that end (see ``initializeRecombinationRate``).
-In msprime, `the manual <https://msprime.readthedocs.io/en/stable/api.html#variable-recombination-rates>`_ says:
+In msprime, we will pass in a :class:`msprime.RateMap`,
+which requires two things:
 
-    Given an index j in these lists, the rate of recombination per base per
-    generation is rates[j] over the interval positions[j] to positions[j + 1].
-    Consequently, the first position must be zero, and by convention the last
-    rate value is also required to be zero (although it is not used).
+- ``position:``: A list of n+1 positions, starting at 0, and ending in the sequence length over which the RateMap will apply.
+- ``rate``: A list of n positive rates that apply between each position.
 
-This means that positions for msprime are both starts and ends.
-As a consequence, msprime needs a vector of positions that is 1 longer than what you give SLiM,
-and msprime also needs 1 fewer rates than it has positions,
-but you just add the 0.0 on at the end of the rates vector "by convention" (step 2).
+So, msprime needs a vector of positions that is 1 longer than what you give SLiM,
+but one fewer rate values than positions.
 
-The reason for step 3 is that intervals for tskit (which msprime uses)
+The reason for step 2 is that intervals for tskit (which msprime uses)
 are "closed on the left and open on the right",
 which means that the genomic interval from 0.0 to 100.0 includes 0.0 but does not include 100.0.
 If SLiM has a final genomic position of 99, then it could have mutations occurring at position 99.
@@ -142,15 +138,13 @@ For instance, suppose that we have a recombination map file in the following (ta
 
 .. literalinclude:: _static/recomb_rates.tsv
 
-This describes recombination rates across a 1Mb segment of genome
-with higher rates on the ends
-(for instance, 3.2 and 2.8 cM/Mb in the first and last 150Kb respectively)
-and lower rates in the middle (0.25 cM/Mb between 500Kb and 850Kb).
+This describes recombination rates across a 100Mb genome with higher rates on the ends
+(for instance, 3.2 and 2.8 cM/Mb in the first and last 15Mb respectively)
+and lower rates in the middle (0.25 cM/Mb between 50Mb and 85Mb).
 The first column gives the starting position, in bp,
 for the window whose recombination rate is given in the second column.
 (*Note:* this is *not* a standard format for recombination maps
-- it is more usual for the *starting*
-position to be listed!)
+- it is more usual for the *starting* position to be listed!)
 
 Here is SLiM code to read this file and set the recombination rates:
 
@@ -179,7 +173,7 @@ and use it for recapitation in msprime:
 
    import msprime, pyslim
    import numpy as np
-   ts = pyslim.load("sim.trees")
+   ts = pyslim.load("example_sim.trees")
    positions = []
    rates = []
    with open('recomb_rates.tsv', 'r') as file:
@@ -193,11 +187,10 @@ and use it for recapitation in msprime:
    # step 1   
    positions.insert(0, 0) 
    # step 2
-   rates.append(0.0)
-   # step 3
    positions[-1] += 1
+   assert positions[-1] == ts.sequence_length
 
-   recomb_map = msprime.RecombinationMap(positions, rates)
+   recomb_map = msprime.RateMap(positions, rates)
    rts = ts.recapitate(recombination_map=recomb_map, Ne=1000)
    assert(max([t.num_roots for t in rts.trees()]) == 1)
 
@@ -310,29 +303,51 @@ Adding neutral mutations to a SLiM simulation
 If you have recorded a tree sequence in SLiM, likely you have not included any neutral mutations,
 since it is much more efficient to simply add these on afterwards.
 To add these (in a completely equivalent way to having included them during the simulation),
-you can use the :meth:`msprime.mutate` function, which returns a new tree sequence with additional mutations.
+you can use the :meth:`msprime.sim_mutations` function, which returns a new tree sequence with additional mutations.
 Continuing with the cartoons from above, these are added to each branch of the tree sequence
 at the rate per unit time that you request.
+We'll add these using the :class:`msprime.SLiMMutationModel`, so that the file can be read back into SLiM,
+but any of the other mutation models in msprime could be used.
 This works as follows:
 
 .. code-block:: python
 
-   ts = pyslim.SlimTreeSequence(msprime.mutate(sts, rate=1e-8, keep=True))
+   ts = pyslim.SlimTreeSequence(
+           msprime.sim_mutations(
+               sts,
+               rate=1e-8,
+               model=msprime.SLiMMutationModel(type=0),
+               keep=True,
+               add_ancestral=True
+               )
+        )
 
    print(f"The tree sequence now has {ts.num_mutations} mutations, "
          f"and mean pairwise nucleotide diversity is {ts.diversity()}.")
    # The tree sequence now has 28430 mutations, and mean pairwise nucleotide diversity is 2.3319e-05.
 
 
-This adds infinite-sites mutations at a rate of 1e-8 per site, making sure to
-``keep`` any existing mutations.
-We have wrapped the call to :meth:`msprime.mutate` in a call to
-:class:`pyslim.SlimTreeSequence`, because :meth:`msprime.mutate` returns an *msprime* tree sequence,
-and by converting it back into a ``pyslim`` tree sequence we can still use the methods
-defined by ``pyslim``. (The conversion does not modify the tree sequence at all,
-it only adds the ``.slim_generation`` attribute.) The output of other ``msprime``
-functions that return tree sequences may be converted back to
-:class:`pyslim.SlimTreeSequence` in the same way.
+What's going on here? Let's step through the code.
+
+1. The mutation ``rate = 1e-8``, which adds mutations at a rate of :math:`10^{-8}` per bp.
+    Unlike previous versions of msprime, this adds mutations using a discrete-sites model,
+    i.e., only at integer locations (like SLiM).
+
+2. We're passing ``type=0`` to the mutation model.
+    This is because SLiM mutations need a "mutation type",
+    and it makes the most sense if we add a type that was unused in the simulation. 
+    In this example we don't have any existing mutation types, so we can safely use ``type=0``.
+
+3. We also add ``keep = True``, to keep any existing mutations.
+    In this example there aren't any, so this isn't strictly necessary,
+    but this is a good default.
+
+4. We have wrapped the msprime call in a call to
+    :class:`pyslim.SlimTreeSequence`, because :meth:`msprime.sim_mutations`
+    returns a standard :class:`tskit.TreeSequence`,
+    and by converting it back into a ``pyslim`` tree sequence we can still use the methods
+    defined by ``pyslim``. (The conversion does not modify the tree sequence at all,
+    it only adds the ``.slim_generation`` attribute, however.)
 
 
 ********************************
@@ -404,7 +419,10 @@ Recapitation takes a bit more thought, because we have to specify a migration ma
                             recombination_rate=1e-8,
                             random_seed=4)
    ts = pyslim.SlimTreeSequence(
-            msprime.mutate(rts, rate=1e-8, random_seed=7))
+            msprime.sim_mutations(
+                        rts, rate=1e-8,
+                        model=msprime.SLiMMutationModel(type=0),
+                        random_seed=7))
 
 Again, there are *three* populations because SLiM starts counting at 1;
 the first population is unused (no migrants can go to it).
@@ -719,23 +737,15 @@ to a ``.trees`` file:
    import pyslim
 
    # simulate a tree sequence of 12 sample genomes
-   ts = msprime.simulate(12, mutation_rate=0.0, recombination_rate=1e-8, length=1e6)
+   ts = msprime.sim_ancestry(12, recombination_rate=1e-8, sequence_length=1e6)
    new_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
    new_ts.dump("initialize_nonWF.trees")
 
 
-Note that we have set the mutation rate to ``0.0``:
-this is because any mutations that are produced will be read in by SLiM...
-which *could* be a very useful thing, if you want to generate mutations with msprime
-that provide standing variation for selection within SLiM...
-**but**, the last msprime release only produces mutations
-with an infinite-sites model, while SLiM requires mutation positions to be at integer positions.
-This will change in msprime v1.0, and is already implemented in the development version,
-so if you'd really like to do this, get in touch.
-When this is released we plan to write a vignette of how to do it.
-*However*, if you intend the pre-existing mutations to be *neutral*,
-then there is no need to add them at this point;
-you can add them after the fact, as discussed above.
+Note that we have not added mutations
+(which we would have done with :meth:`msprime.sim_mutations`).
+This is because we are simulating a neutral model,
+and so will add them at the end.
 Also note that we have set ``slim_generation`` to 1;
 this means that as soon as we load the tree sequence into SLiM,
 SLiM will set the current time counter to 1.
@@ -745,26 +755,7 @@ would not execute after loading the tree sequence.)
 The resulting file ``slim_ts.trees`` can be read into SLiM to be used as a starting state,
 as illustrated in this minimal example::
 
-   initialize()
-   {
-       initializeSLiMModelType("nonWF");
-       initializeTreeSeq();
-       initializeMutationRate(1e-2);
-       initializeMutationType("m1", 0.5, "f", -0.1);
-       initializeGenomicElementType("g1", m1, 1.0);
-       initializeGenomicElement(g1, 0, 1e6-1);
-       initializeRecombinationRate(1e-8);
-   }
-
-   1 early() { 
-       sim.readFromPopulationFile("initialize_nonWF.trees");
-   }
-
-   10 {
-       sim.treeSeqOutput("nonWF_restart.trees");
-       catn("Done.");
-       sim.simulationFinished();
-   }
+.. literalinclude:: neutral_restart.slim
 
 See the SLiM manual for more about this operation.
 
@@ -1064,7 +1055,8 @@ Also known as "gotchas".
 
 1. If you use msprime to simulate a tree sequence, and then use that to initialize a SLiM simulation,
     you have to specify the same sequence length in both: as in the examples above,
-    the ``length`` argument to :py:meth:`msprime.simulate` should be equal to the SLiM sequence length *plus 1.0* (e.g., if the base positions in SLiM are 0 to 99, then there are 100 bases in all,
+    the ``sequence_length`` argument to :py:meth:`msprime.sim_ancestry` should be equal to the SLiM sequence length
+    *plus 1.0* (e.g., if the base positions in SLiM are 0 to 99, then there are 100 bases in all,
     so the sequence length should be 100).
 
 2. Make sure to distinguish *individuals* and *nodes*!
@@ -1076,7 +1068,7 @@ Also known as "gotchas".
 
    a. the currently alive individuals, 
    b. any individuals that have been permanently remembered with
-      ``treeSeqRememberIndividuals()``
+      ``treeSeqRememberIndividuals()``, and
    c. any individuals that have been temporarily retained with
       ``treeSeqRememberIndividuals(permanent=F)``. Importantly, the nodes in these
       individuals are *not* marked as sample nodes, so they can be lost during
