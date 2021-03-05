@@ -1,14 +1,23 @@
-.. _sec_metadata:
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.12
+    jupytext_version: 1.9.1
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 
-========
-Metadata
-========
+(sec_metadata)=
 
-.. _sec_metadata_converting_times:
+# Metadata
 
-***************************************
-Converting from SLiM time to tskit time
-***************************************
+(sec_metadata_converting_times)=
+
+## Converting from SLiM time to tskit time
 
 SLiM is a forwards simulator, while the tree sequence format thinks about things
 *retrospectively*, and so works with times in units of *time ago*.
@@ -25,8 +34,8 @@ SLiM's time counter is called the "generation"
 (although a "year" or "life cycle" would be a more appropriate name for a nonWF model).
 The SLiM generation starts at 1, and records which round of the life cycle the simulation is in.
 However, the order of the life cycle differs between WF and nonWF models:
-in a WF model, it is "*early* :math:`\to` *birth* :math:`\to` *late*",
-while in a nonWF model, it is "*birth* :math:`\to` *early* :math:`\to` *late*".
+in a WF model, it is "*early* {math}`\to` *birth* {math}`\to` *late*",
+while in a nonWF model, it is "*birth* {math}`\to` *early* {math}`\to` *late*".
 Usually, the first set of individuals are created in the *early()* phase of generation 1,
 and so in a WF model reproduce immediately, in the same generation they were "born".
 Parents and offspring cannot have the same birth time in the tree sequence,
@@ -59,7 +68,7 @@ only during the same stage that output occured in.
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 |    generation      |       stage         |  # births          |                                |  early output             |      late output   |
 +====================+=====================+====================+================================+===========================+====================+
-|       1            |       early         |       0            | :math:`\leftarrow` add subpops |        n-1                |         n          |
+|       1            |       early         |       0            | {math}`\leftarrow` add subpops |        n-1                |         n          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 |       1            |       birth         |       1            |                                |        n-2                |         n-1        |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
@@ -77,7 +86,7 @@ only during the same stage that output occured in.
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 |       3            |       late          |       3            |                                |        n-4                |         n-3        |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-| :math:`\downarrow` | :math:`\cdots`      | :math:`\downarrow` |                                | :math:`\uparrow`          | :math:`\uparrow`   |
+| {math}`\downarrow` | {math}`\cdots`      | {math}`\downarrow` |                                | {math}`\uparrow`          | {math}`\uparrow`   |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 |       n-2          |       early         |       n-3          |                                |        2                  |         2          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
@@ -91,11 +100,11 @@ only during the same stage that output occured in.
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 |       n-1          |       late          |       n-1          |                                |        0                  |         1          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n            |       early         |       n-1          |  treeSeqOutput :math:`\to`     |        0                  |         1          |
+|       n            |       early         |       n-1          |  treeSeqOutput {math}`\to`     |        0                  |         1          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 |       n            |       birth         |       n            |                                |                           |         0          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n            |       late          |       n            |                                | treeSeqOutput :math:`\to` |         0          |
+|       n            |       late          |       n            |                                | treeSeqOutput {math}`\to` |         0          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 
 And, here is the same thing for a nonWF model.
@@ -109,7 +118,7 @@ tskit time ago from the SLiM generation at time of output.
 +====================+=====================+====================+================================+===========================+====================+
 |       1            |       birth         |       1            |                                |        n-1                |         n-1        |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       1            |       early         |       1            | :math:`\leftarrow` add subpops |        n-1                |         n-1        |
+|       1            |       early         |       1            | {math}`\leftarrow` add subpops |        n-1                |         n-1        |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 |       1            |       late          |       1            |                                |        n-1                |         n-1        |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
@@ -125,7 +134,7 @@ tskit time ago from the SLiM generation at time of output.
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 |       3            |       late          |       3            |                                |        n-3                |         n-3        |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-| :math:`\downarrow` | :math:`\cdots`      | :math:`\downarrow` |                                | :math:`\uparrow`          | :math:`\uparrow`   |
+| {math}`\downarrow` | {math}`\cdots`      | {math}`\downarrow` |                                | {math}`\uparrow`          | {math}`\uparrow`   |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 |       n-2          |       birth         |       n-2          |                                |        2                  |         2          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
@@ -141,9 +150,9 @@ tskit time ago from the SLiM generation at time of output.
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 |       n            |       birth         |       n            |                                |        0                  |         0          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n            |       early         |       n            |  treeSeqOutput :math:`\to`     |        0                  |         0          |
+|       n            |       early         |       n            |  treeSeqOutput {math}`\to`     |        0                  |         0          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n            |       late          |       n            |                                | treeSeqOutput :math:`\to` |         0          |
+|       n            |       late          |       n            |                                | treeSeqOutput {math}`\to` |         0          |
 +--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
 
 When the tree sequence is written out, SLiM records the value of its current generation,
@@ -175,10 +184,10 @@ to SLiM time as follows:
             slim_time += 1
       return slim_time
 
-This is what is computed by the :meth:`.SlimTreeSequence.slim_time` method
+This is what is computed by the {meth}`.SlimTreeSequence.slim_time` method
 (which also has a ``stage`` argument).
 
-Some of the other methods in pyslim -- those that depend on :meth:`.SlimTreeSequence.individuals_alive_at`
+Some of the other methods in pyslim -- those that depend on {meth}`.SlimTreeSequence.individuals_alive_at`
 -- need you to tell them during which stage the tree sequence was saved with ``sim.treeSeqOutput``,
 and need this to be the same as the stage that any individuals were saved with ``sim.treeSeqRememberIndividuals``.
 This argument, ``remembered_stage``, defaults to "late()";
@@ -187,16 +196,12 @@ during "late()" as well, unless you have good reason not to.
 (This means you *must specify* the stage of the block in your SLiM script,
 since the stage defaults to "early()"!)
 
-***********************
-Modifying SLiM metadata
-***********************
+## Modifying SLiM metadata
 
 For more on working with metadata,
 see `tskit's metadata documentation <https://tskit.readthedocs.io/en/latest/metadata.html#sec-metadata>`_.
 
-++++++++++++++++++
-Top-level metadata
-++++++++++++++++++
+### Top-level metadata
 
 The entries of the top-level metadata dict are *read-only*: so,
 you might think that
@@ -216,9 +221,7 @@ Modifying the top-level metadata
 could be used to set spatial bounds on an annotated msprime simulation, for instance.
 
 
-+++++++++++++++++++++++++++++++++
-Modifying SLiM metadata in tables
-+++++++++++++++++++++++++++++++++
+### Modifying SLiM metadata in tables
 
 
 To modify the metadata that ``pyslim`` has introduced into
@@ -251,13 +254,9 @@ and write out the resulting tree sequence:
    mod_ts.dump("modified_ts.trees")
 
 
-*****************
-Technical details
-*****************
+## Technical details
 
-++++++++++++++++
-Metadata entries
-++++++++++++++++
+### Metadata entries
 
 SLiM records additional information in the metadata columns of Population, Individual, Node, and Mutation tables,
 in a binary format using the python ``struct`` module.
@@ -274,11 +273,9 @@ And, populations not used by SLiM will have empty metadata.
 All remaining metadata are required (besides edges and sites, whose metadata is not used at all).
 
 
-.. _sec_legacy_metadata:
+(sec_legacy_metadata)=
 
-===============
-Legacy metadata
-===============
+# Legacy metadata
 
 In previous versions of pyslim,
 SLiM-specific metadata was provided as customized objects:
@@ -295,13 +292,12 @@ with entries ``n.metadata["slim_id"]`` and ``n.metadata["is_null"]`` and ``n.met
 Annotation should be done with tskit methods (e.g., ``packset_metadata``).
 
 For now, the old-style metadata is still available:
-passing the argument ``legacy_metadata=True`` to :meth:`load`
+passing the argument ``legacy_metadata=True`` to {meth}`load`
 will produce a tree sequence whose metadata is just as before,
 and so all previously-written scripts that depend on metadata processing should work, unchanged.
 Restating this:
 
-.. note::
-
+:::{note}
    To make an script that relied on previous metadata parsing work,
    it should suffice to add `legacy_metadata=True` to calls producing
    SlimTreeSequences, e.g., replacing ``pyslim.load("file.trees")`` with
@@ -309,6 +305,7 @@ Restating this:
    ``ts.simplify(nodes)`` with
    ``pyslim.SlimTreeSequence(ts.simplify(nodes), legacy_metadata=True)``.
    If this fails, please file an issue on github.
+:::
 
 Here are more detailed notes on how to migrate a script from the legacy
 metadata handling.
@@ -379,8 +376,8 @@ since the metadata in the tables of a TableCollection are automatically decoded.
 For instance, ``[ind.metadata["sex"] for ind in tables.individuals]`` will obtain
 a list of sexes of the individuals in the IndividualTable.
 
-.. warning::
-
+:::{warning}
    It is our intention to remain backwards-compatible for a time.
    However, the legacy code will disappear at some point in the future,
    so please migrate over scripts you intend to rely on.
+:::

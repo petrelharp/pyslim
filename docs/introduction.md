@@ -1,8 +1,19 @@
-.. _sec_introduction:
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.12
+    jupytext_version: 1.9.1
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
 
-============
-Introduction
-============
+(sec_introduction)=
+
+# Introduction
 
 This is the documentation for pyslim, a Python API
 for reading and modifying `tskit <https://tskit.readthedocs.io/>`_ tree sequence files
@@ -21,9 +32,7 @@ file to recreate the exact state of the population at the time it was saved.
 To do this, SLiM has added several additional types of information to the basic
 tree sequence file.
 
-********
-Overview
-********
+## Overview
 
 A tree sequence is a way of storing both the full genetic history and the genotypes
 of a bunch of genomes.
@@ -42,9 +51,7 @@ SLiM simulates diploid organisms, so each *individual* usually has two nodes;
 many operations you might want to do involve first finding the individuals you want,
 and then looking at their nodes.
 
-*******************************************
-What does SLiM record in the tree sequence?
-*******************************************
+## What does SLiM record in the tree sequence?
 
 Suppose we've run a very small simulation with SLiM. The genetic relationships between
 the various diploid individuals who were alive over the course of the simulation might
@@ -60,21 +67,29 @@ only certain parts of the genetic genealogy. When the tree sequence is output, t
 then looks something like the situation on the right, in which many of the nodes and
 individuals have been removed.
 
-.. figure:: _static/pedigree01.png
-   :scale: 40%
+```{figure} _static/pedigree01.png
+---
+scale: 40%
+name: pedigree01
+---
+TODO CAPTION
+```
 
-.. _sec_left_in_tree_sequence:
+(sec_left_in_tree_sequence)=
 
-*************************************
-Who and what is in the tree sequence?
-*************************************
+## Who and what is in the tree sequence?
 
 OK, who and what exactly *is* left in the tree sequence after the unnecessary
 information has been removed? Here's the diagram above with some added terminology.
 
-.. figure:: _static/pedigree2.png
-   :scale: 40%
-   :align: right
+```{figure} _static/pedigree2.png
+---
+name: pedigree2
+scale: 40%
+align: right
+---
+TODO CAPTION
+```
 
 In the recorded tree sequence the alive individuals, which in this model are those
 in the final generation, have all had their nodes marked as *samples*. As
@@ -86,7 +101,7 @@ circles, representing historical (i.e. dead) individuals, have vanished, althoug
 sometimes their nodes remain. By default, only individuals with sample nodes are recorded
 in the tree sequence; that means the other, remaining, nodes lose any information about
 which individuals they were in (the tutorial explains ways to
-:ref:`retain this information <sec_retaining_individuals>`).
+{ref}`retain this information <sec_retaining_individuals>`).
 
 As well as the historical individuals, many historical *nodes*  have been removed too,
 along with with their genealogical relationships (i.e. the lines, which in
@@ -103,13 +118,11 @@ by default, we also remove historical nodes that are only "on the line to" a sam
 do not represent a branching point (i.e. coalescent event) on the tree.
 
 
-************************************************
-What else can I find out from the tree sequence?
-************************************************
+## What else can I find out from the tree sequence?
 
 Enough information is stored in the tree sequence
 to completely reconstruct the state of the SLiM simulation
 (except for user-defined data, like a `tag`).
 Most of this is stored as *metadata*, which pyslim makes accessible:
-see :ref:`sec_metadata`.
+see {ref}`sec_metadata`.
 
