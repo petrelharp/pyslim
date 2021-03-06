@@ -16,13 +16,12 @@ kernelspec:
 # Introduction
 
 This is the documentation for pyslim, a Python API
-for reading and modifying `tskit <https://tskit.readthedocs.io/>`_ tree sequence files
-produced by `SLiM <https://messerlab.org/slim/>`_, 
+for reading and modifying {ref}`tskit <tskit:sec_introduction>` tree sequence files
+produced by [SLiM](https://messerlab.org/slim/), 
 or modifying files produced by other programs (e.g.,
-`msprime <https://msprime.readthedocs.io/en/stable/>`_,
-`fwdpy11
-<https://fwdpy11.readthedocs.io/en/stable/pages/tsoverview.html>`_
-and `tsinfer <https://tsinfer.readthedocs.io/>`_) for use in SLiM. 
+{ref}`msprime <msprime:sec_introduction>`,
+[fwdpy11](https://fwdpy11.readthedocs.io/en/stable/pages/tsoverview.html),
+and [tsinfer](https://tsinfer.readthedocs.io/)) for use in SLiM. 
 
 SLiM can read and write *tree sequences*, which store genetic genealogies
 for entire populations. These can be used to efficiently encode both the state of the
@@ -36,13 +35,13 @@ tree sequence file.
 
 A tree sequence is a way of storing both the full genetic history and the genotypes
 of a bunch of genomes.
-See `the tskit documentation <https://tskit.readthedocs.io/en/latest/>`_
+See {ref}`the tskit documentation <tskit:sec_introduction>`
 for more description of the tree sequence and underlying data structure,
 and definitions of the important terms.
 Each (haploid) genome is associated with a *node*,
 and the "focal" nodes are called *sample nodes* or simply *samples*.
 Many operations on tree sequences act on the sample nodes by default (see the
-`tskit data model <https://tskit.readthedocs.io/en/latest/data-model.html#nodes-genomes-or-individuals>`_
+{ref}`tskit data model <tskit:sec_nodes_or_individuals>`
 for more on this topic), and the tree sequence always describes the genealogy of the
 entire genome of all the samples, at at least over the simulated time period.
 (Other nodes in the tree sequence represent ancestral genomes
@@ -64,7 +63,7 @@ relationships between the nodes in those individuals which are still alive;
 other parts of the genealogy are irrelevant. To save having to store this unnecessary
 genealogical information, SLiM *simplifies* the tree sequence as it goes along, retaining
 only certain parts of the genetic genealogy. When the tree sequence is output, the result
-then looks something like the situation on the right, in which many of the nodes and
+then looks something like the situation in [the figure below](pedigree01), in which many of the nodes and
 individuals have been removed.
 
 ```{figure} _static/pedigree01.png
@@ -72,7 +71,9 @@ individuals have been removed.
 scale: 40%
 name: pedigree01
 ---
-TODO CAPTION
+A conceptual diagram of
+**(A)** relationships between chromosomes of diploid individuals in a SLiM simulation, and
+**(B)** which information is returned in the tree sequence.
 ```
 
 (sec_left_in_tree_sequence)=
@@ -80,15 +81,15 @@ TODO CAPTION
 ## Who and what is in the tree sequence?
 
 OK, who and what exactly *is* left in the tree sequence after the unnecessary
-information has been removed? Here's the diagram above with some added terminology.
+information has been removed?
+{numref}`Figure {number} <pedigree2>` depicts the terminology.
 
 ```{figure} _static/pedigree2.png
 ---
 name: pedigree2
 scale: 40%
-align: right
 ---
-TODO CAPTION
+The diagram in {numref}`figure {number} <pedigree01>`, with labels.
 ```
 
 In the recorded tree sequence the alive individuals, which in this model are those

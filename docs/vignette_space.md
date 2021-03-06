@@ -145,12 +145,12 @@ In other words, recapitation adds diversity present in the initial generation;
 will it make a difference? 
 In fact, *no* segments of the genome have coalesced:
 
-.. code-block:: none
-
-   >> sum([t.num_roots == 1 for t in slim_ts.trees()])
-   0
-   >>> sum([t.num_roots > 0 for t in slim_ts.trees()])
-   37095
+```{code-cell}
+sum([t.num_roots == 1 for t in slim_ts.trees()])
+# 0
+sum([t.num_roots > 0 for t in slim_ts.trees()])
+# 37095
+```
 
 Next, we will:
 

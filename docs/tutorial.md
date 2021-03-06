@@ -170,7 +170,7 @@ for the window whose recombination rate is given in the second column.
 Here is SLiM code to read this file and set the recombination rates:
 
 ```
-lines = readFile("_static/recomb_rates.tsv");
+lines = readFile("recomb_rates.tsv");
 header = strsplit(lines[0], "\t");
 if (header[0] != "end_position"
     | header[1] != "rate(cM/Mb)") {
@@ -195,8 +195,8 @@ import msprime, pyslim
 import numpy as np
 ts = pyslim.load("example_sim.trees")
 positions = []
-raees = []
-with open('recomb_rates.tsv', 'r') as file:
+rates = []
+with open('_static/recomb_rates.tsv', 'r') as file:
   header = file.readline().strip().split("\t")
   assert(header[0] == "end_position" and header[1] == "rate(cM/Mb)")
   for line in file:
@@ -1063,7 +1063,7 @@ Let's find its frequency in the full population:
 ```{code-cell}
 full_freqs = allele_counts(ts)
 print(f"Allele is found in {full_freqs[m.site][0]} copies,"
-     f" and has selection coefficient {m.metadata[0].selection_coeff}.")
+     f" and has selection coefficient {m.metadata['mutation_list'][0]['selection_coeff']}.")
 # Allele is found in 1004.0 copies, and has selection coefficient 5.109511852264404.
 ```
 
@@ -1073,7 +1073,7 @@ we could reload the tree sequence into SLiM,
 restart the simulation, and use its ID to track its subsequent progression.
 
 
-# Possibly important technical notes
+## Possibly important technical notes
 
 Also known as "gotchas".
 

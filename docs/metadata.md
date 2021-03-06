@@ -11,6 +11,18 @@ kernelspec:
   name: python3
 ---
 
+```{code-cell}
+:tags: [remove-cell]
+
+    import pyslim, tskit, msprime
+    from IPython.display import SVG
+    import numpy as np
+
+    ts = pyslim.load("example_sim.trees")
+    tables = ts.tables
+```
+
+
 (sec_metadata)=
 
 # Metadata
@@ -18,6 +30,12 @@ kernelspec:
 (sec_metadata_converting_times)=
 
 ## Converting from SLiM time to tskit time
+
+:::{note}
+This is a nitpicky, document-the-details section.
+Hopefully, you don't have to deal with the specifics of converting between tskit and SLiM time,
+but this page is here for you if you do.
+:::
 
 SLiM is a forwards simulator, while the tree sequence format thinks about things
 *retrospectively*, and so works with times in units of *time ago*.
@@ -58,103 +76,66 @@ The extra wrinkle this introduces is that the correspondence between "tskit time
 and "SLiM time" depends on *which phase the tree sequence was recorded in*,
 but only for WF models.
 
-To help keep all this straight, here is a schematic for a WF model.
-Note that the SLiM generation (first column) can be obtained by subtracting the
-tskit time ago from the SLiM generation at time of output
-only during the same stage that output occured in.
+To help keep all this straight, here are schematics for WF and nonWF models.
+(To see the nonWF model, click on the tab.)
 
-+------------------------------------------------------------------------------------------------+------------------------------------------------+
-|                    WF Model                                                                    |              tskit time ago                    |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|    generation      |       stage         |  # births          |                                |  early output             |      late output   |
-+====================+=====================+====================+================================+===========================+====================+
-|       1            |       early         |       0            | {math}`\leftarrow` add subpops |        n-1                |         n          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       1            |       birth         |       1            |                                |        n-2                |         n-1        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       1            |       late          |       1            |                                |        n-2                |         n-1        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       2            |       early         |       1            |                                |        n-2                |         n-1        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       2            |       birth         |       2            |                                |        n-3                |         n-2        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       2            |       late          |       2            |                                |        n-3                |         n-2        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       3            |       early         |       2            |                                |        n-3                |         n-2        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       3            |       birth         |       3            |                                |        n-4                |         n-3        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       3            |       late          |       3            |                                |        n-4                |         n-3        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-| {math}`\downarrow` | {math}`\cdots`      | {math}`\downarrow` |                                | {math}`\uparrow`          | {math}`\uparrow`   |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-2          |       early         |       n-3          |                                |        2                  |         2          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-2          |       birth         |       n-2          |                                |        1                  |         2          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-2          |       late          |       n-2          |                                |        1                  |         2          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-1          |       early         |       n-2          |                                |        1                  |         2          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-1          |       birth         |       n-1          |                                |        0                  |         1          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-1          |       late          |       n-1          |                                |        0                  |         1          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n            |       early         |       n-1          |  treeSeqOutput {math}`\to`     |        0                  |         1          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n            |       birth         |       n            |                                |                           |         0          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n            |       late          |       n            |                                | treeSeqOutput {math}`\to` |         0          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
+```{tabbed} WF model
 
-And, here is the same thing for a nonWF model.
-Note that the SLiM generation (first column) can always be obtained by subtracting the
+For a WF model, the SLiM generation (first column) can be obtained by subtracting the
+tskit time ago from the SLiM generation at time of output only during the same stage that output occured in.
+
+|    generation      |       stage         |  # births          |                                |  tskit time ago, early output |   tskit time ago, late output |
+|--------------------|---------------------|--------------------|--------------------------------|-------------------------------|-------------------------------|
+|       1            |       early         |       0            | {math}`\leftarrow` add subpops |        n-1                    |         n                     |
+|       1            |       birth         |       1            |                                |        n-2                    |         n-1                   |
+|       1            |       late          |       1            |                                |        n-2                    |         n-1                   |
+|       2            |       early         |       1            |                                |        n-2                    |         n-1                   |
+|       2            |       birth         |       2            |                                |        n-3                    |         n-2                   |
+|       2            |       late          |       2            |                                |        n-3                    |         n-2                   |
+|       3            |       early         |       2            |                                |        n-3                    |         n-2                   |
+|       3            |       birth         |       3            |                                |        n-4                    |         n-3                   |
+|       3            |       late          |       3            |                                |        n-4                    |         n-3                   |
+| {math}`\downarrow` | {math}`\cdots`      | {math}`\downarrow` |                                | {math}`\uparrow`              | {math}`\uparrow`              |
+|       n-2          |       early         |       n-3          |                                |        2                      |         2                     |
+|       n-2          |       birth         |       n-2          |                                |        1                      |         2                     |
+|       n-2          |       late          |       n-2          |                                |        1                      |         2                     |
+|       n-1          |       early         |       n-2          |                                |        1                      |         2                     |
+|       n-1          |       birth         |       n-1          |                                |        0                      |         1                     |
+|       n-1          |       late          |       n-1          |                                |        0                      |         1                     |
+|       n            |       early         |       n-1          |  treeSeqOutput {math}`\to`     |        0                      |         1                     |
+|       n            |       birth         |       n            |                                |                               |         0                     |
+|       n            |       late          |       n            |                                | treeSeqOutput {math}`\to`     |         0                     |
+
+```
+
+```{tabbed} nonWF model
+
+Note that for nonWF models the SLiM generation (first column) can always be obtained by subtracting the
 tskit time ago from the SLiM generation at time of output.
 
-+------------------------------------------------------------------------------------------------+------------------------------------------------+
-|                 nonWF Model                                                                    |              tskit time ago                    |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       generation   |       stage         |  # births          |                                |  early output             |      late output   |
-+====================+=====================+====================+================================+===========================+====================+
-|       1            |       birth         |       1            |                                |        n-1                |         n-1        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       1            |       early         |       1            | {math}`\leftarrow` add subpops |        n-1                |         n-1        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       1            |       late          |       1            |                                |        n-1                |         n-1        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       2            |       birth         |       2            |                                |        n-2                |         n-2        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       2            |       early         |       2            |                                |        n-2                |         n-2        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       2            |       late          |       2            |                                |        n-2                |         n-2        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       3            |       birth         |       3            |                                |        n-3                |         n-3        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       3            |       early         |       3            |                                |        n-3                |         n-3        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       3            |       late          |       3            |                                |        n-3                |         n-3        |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-| {math}`\downarrow` | {math}`\cdots`      | {math}`\downarrow` |                                | {math}`\uparrow`          | {math}`\uparrow`   |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-2          |       birth         |       n-2          |                                |        2                  |         2          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-2          |       early         |       n-2          |                                |        2                  |         2          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-2          |       late          |       n-2          |                                |        2                  |         2          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-1          |       birth         |       n-1          |                                |        1                  |         1          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-1          |       early         |       n-1          |                                |        1                  |         1          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n-1          |       late          |       n-1          |                                |        1                  |         1          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n            |       birth         |       n            |                                |        0                  |         0          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n            |       early         |       n            |  treeSeqOutput {math}`\to`     |        0                  |         0          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
-|       n            |       late          |       n            |                                | treeSeqOutput {math}`\to` |         0          |
-+--------------------+---------------------+--------------------+--------------------------------+---------------------------+--------------------+
+|    generation      |       stage         |  # births          |                                |  tskit time ago, early output |   tskit time ago, late output |
+|--------------------|---------------------|--------------------|--------------------------------|-------------------------------|-------------------------------|
+|       1            |       birth         |       1            |                                |        n-1                    |         n-1                   |
+|       1            |       early         |       1            | {math}`\leftarrow` add subpops |        n-1                    |         n-1                   |
+|       1            |       late          |       1            |                                |        n-1                    |         n-1                   |
+|       2            |       birth         |       2            |                                |        n-2                    |         n-2                   |
+|       2            |       early         |       2            |                                |        n-2                    |         n-2                   |
+|       2            |       late          |       2            |                                |        n-2                    |         n-2                   |
+|       3            |       birth         |       3            |                                |        n-3                    |         n-3                   |
+|       3            |       early         |       3            |                                |        n-3                    |         n-3                   |
+|       3            |       late          |       3            |                                |        n-3                    |         n-3                   |
+| {math}`\downarrow` | {math}`\cdots`      | {math}`\downarrow` |                                | {math}`\uparrow`              | {math}`\uparrow`              |
+|       n-2          |       birth         |       n-2          |                                |        2                      |         2                     |
+|       n-2          |       early         |       n-2          |                                |        2                      |         2                     |
+|       n-2          |       late          |       n-2          |                                |        2                      |         2                     |
+|       n-1          |       birth         |       n-1          |                                |        1                      |         1                     |
+|       n-1          |       early         |       n-1          |                                |        1                      |         1                     |
+|       n-1          |       late          |       n-1          |                                |        1                      |         1                     |
+|       n            |       birth         |       n            |                                |        0                      |         0                     |
+|       n            |       early         |       n            |  treeSeqOutput {math}`\to`     |        0                      |         0                     |
+|       n            |       late          |       n            |                                | treeSeqOutput {math}`\to`     |         0                     |
 
+```
 When the tree sequence is written out, SLiM records the value of its current generation,
 which can be found in the metadata: ``ts.metadata['SLiM']['generation']``
 (or, the ``ts.slim_generation`` attribute).
@@ -171,18 +152,18 @@ as ``ts.metadata['SLiM']['stage']``.
 Using this, we can convert from the times of a tree sequence ``ts``
 to SLiM time as follows:
 
-.. code-block:: python
-
-   def slim_time(ts, time, stage):
-      slim_time = ts.slim_generation - time
-      if ts.metadata['SLiM']['model_type'] == "WF":
-        if (ts.metadata['SLiM']['stage'] == "early"
-            and stage == "late"):
-            slim_time -= 1
-        if (ts.metadata['SLiM']['stage'] == "late"
-            and stage == "early"):
-            slim_time += 1
-      return slim_time
+```{code-cell}
+def slim_time(ts, time, stage):
+  slim_time = ts.slim_generation - time
+  if ts.metadata['SLiM']['model_type'] == "WF":
+    if (ts.metadata['SLiM']['stage'] == "early"
+        and stage == "late"):
+        slim_time -= 1
+    if (ts.metadata['SLiM']['stage'] == "late"
+        and stage == "early"):
+        slim_time += 1
+  return slim_time
+```
 
 This is what is computed by the {meth}`.SlimTreeSequence.slim_time` method
 (which also has a ``stage`` argument).
@@ -196,10 +177,12 @@ during "late()" as well, unless you have good reason not to.
 (This means you *must specify* the stage of the block in your SLiM script,
 since the stage defaults to "early()"!)
 
+
 ## Modifying SLiM metadata
 
 For more on working with metadata,
 see `tskit's metadata documentation <https://tskit.readthedocs.io/en/latest/metadata.html#sec-metadata>`_.
+
 
 ### Top-level metadata
 
@@ -211,11 +194,11 @@ we must (a) work with tables (as tree sequences are immutable, and (b)
 extract the metadata dict, modify the dict, and copy it back in.
 Instead, you should do
 
-.. code-block:: python
-
-   md = tables.metadata
-   md["SLiM"]["model_type"] = "nonWF"
-   tables.metadata = md
+```{code-cell}
+md = tables.metadata
+md["SLiM"]["model_type"] = "nonWF"
+tables.metadata = md
+```
 
 Modifying the top-level metadata
 could be used to set spatial bounds on an annotated msprime simulation, for instance.
@@ -232,27 +215,28 @@ what we do is (a) extract the metadata (as a list of dicts),
 For instance, to set the ages of the individuals in the tree sequence to random numbers between 1 and 4,
 and write out the resulting tree sequence:
 
-.. code-block:: python
+```{code-cell}
+import random
+random.seed(23)
 
-   import random
+tables = ts.tables
+ind_md = [ind.metadata for ind in tables.individuals]
+for md in ind_md:
+   md["age"] = random.choice([1,2,3,4])
 
-   tables = ts.tables
-   ind_md = [ind.metadata for ind in tables.individuals]
-   for md in ind_md:
-       md["age"] = random.choice([1,2,3,4])
+ims = tables.individuals.metadata_schema
+tables.individuals.packset_metadata(
+  [ims.validate_and_encode_row(md) for md in ind_md])
+mod_ts = pyslim.load_tables(tables)
 
-   ims = tables.individuals.metadata_schema
-   tables.individuals.packset_metadata(
-      [ims.validate_and_encode_row(md) for md in ind_md])
-   mod_ts = pyslim.load_tables(tables, slim_format=True)
+# check that it worked:
+print("First ten ages:", [ts.individual(i).metadata["age"], for i in range(10)])
+for ind in ts.individuals:
+    assert ind.metadata['age'] in [1, 2, 3, 4]
 
-   # check that it worked:
-   for ind in mod_ts.individuals():
-       print(ind.metadata["age"])
-
-   # save out the tree sequence
-   mod_ts.dump("modified_ts.trees")
-
+# save out the tree sequence
+mod_ts.dump("modified_ts.trees")
+```
 
 ## Technical details
 
@@ -275,7 +259,7 @@ All remaining metadata are required (besides edges and sites, whose metadata is 
 
 (sec_legacy_metadata)=
 
-# Legacy metadata
+## Legacy metadata
 
 In previous versions of pyslim,
 SLiM-specific metadata was provided as customized objects:
@@ -362,11 +346,13 @@ for instance, if ``metadata`` is a list of NodeMetadata objects, then
 to contain the (encoded) metadata in the list ``metadata``.
 Now, this would be done as follows (where now ``metadata`` is a list of metadata dicts):
 
-.. code-block:: python
-
-   nms = tables.nodes.metadata_schema
-   tables.nodes.packset_metadata(
-      [nms.validate_and_encode_row(r) for r in metadata])
+```{code-cell}
+metadata = [ {'slim_id': k, 'is_null': False, 'genome_type': 0}
+            for k in range(tables.nodes.num_rows) ]
+nms = tables.nodes.metadata_schema
+tables.nodes.packset_metadata(
+  [nms.validate_and_encode_row(r) for r in metadata])
+```
 
 If speed is an issue, then ``encode_row`` can be substituted for ``validate_and_encode_row``,
 but at the risk of missing errors in metadata.
