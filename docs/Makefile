@@ -8,7 +8,7 @@ dev:
 	PYTHONPATH=${PYPATH} ./build.sh
 
 dist:
-	@echo Building distribution for pyslim version ${MSP_VERSION}
+	@echo Building distribution for pyslim version ${PYSLIM_VERSION}
 	sed -i s/__PYSLIM_VERSION__/${PYSLIM_VERSION}/g _config.yml
 	PYTHONPATH=${PYPATH} ./build.sh
 

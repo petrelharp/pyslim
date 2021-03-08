@@ -11,15 +11,28 @@ kernelspec:
   name: python3
 ---
 
+```{code-cell}
+:tags: [remove-cell]
+
+    import pyslim, tskit, msprime
+    from IPython.display import SVG
+    import numpy as np
+
+    ts = pyslim.load("example_sim.trees")
+    tables = ts.tables
+```
+
+
 (sec_python_api)=
 
 # Python API
 
-This page provides detailed documentation for the ``pyslim`` Python API.
+This page provides detailed documentation for the methods and classes
+available in pyslim.
 
 ## Additions to the tree sequence
 
-The {class}`tskit.TreeSequence` class represents a sequence of correlated trees
+The {class}`tskit.TreeSequence` class represents a sequence of trees
 that describes the genealogical history of a population.
 Here, we describe pyslim's additions to this class.
 
@@ -33,80 +46,14 @@ Here, we describe pyslim's additions to this class.
 :::
 
 
-## Constants
-
-:::{eval-rst}
-.. data:: slim_tree_sequence.py:NUCLEOTIDES == ['A', 'C', 'G', 'T']
-
-   Nucleotide states in nucleotide models are encoded as integers (0, 1, 2, 3);
-   this gives the mapping.
-:::
-
-These constants are used to encode the "genome type" of a Node.
-
-:::{eval-rst}
-.. data:: GENOME_TYPE_AUTOSOME == 0
-:::
-
-:::{eval-rst}
-.. data:: GENOME_TYPE_X == 1
-:::
-
-:::{eval-rst}
-.. data:: GENOME_TYPE_Y == 2
-:::
-
-
-These constants are used to encode other information about Individuals.
-
-:::{eval-rst}
-.. data:: INDIVIDUAL_TYPE_HERMAPHRODITE == -1
-:::
-
-:::{eval-rst}
-.. data:: INDIVIDUAL_TYPE_FEMALE == 0
-:::
-
-:::{eval-rst}
-.. data:: INDIVIDUAL_TYPE_MALE == 1
-:::
-
-:::{eval-rst}
-.. data:: INDIVIDUAL_FLAG_MIGRATED == 0x01
-:::
-
-And, these are used in the `Individual.flags`:
-
-:::{eval-rst}
-.. data:: INDIVIDUAL_ALIVE == 2**16
-
-   This flag is used by SLiM to record information in the :class:`tskit.Individual` metadata.
-:::
-
-:::{eval-rst}
-.. data:: INDIVIDUAL_REMEMBERED == 2**17
-
-   This flag is used by SLiM to record information in the :class:`tskit.Individual` metadata.
-:::
-
-:::{eval-rst}
-.. data:: INDIVIDUAL_RETAINED == 2**18
-
-   This flag is used by SLiM to record information in the :class:`tskit.Individual` metadata.
-:::
-
-
 ## Metadata
 
 SLiM-specific metadata is made visible to the user by ``.metadata`` properties.
 For instance:
-
-```bash
+```{code-cell}
 ts.node(4).metadata
-# {"slim_id" : 3, "is_null" : 0, "genome_type" : 0}
 ```
-
-shows that the fourth node in the tree sequence was given pedigree ID ``3`` by SLiM,
+shows that the fifth node in the tree sequence was given pedigree ID ``982740`` by SLiM,
 is *not* a null genome, and has ``genome_type`` zero, which corresponds to an autosome 
 (see below).
 
@@ -134,5 +81,55 @@ underlying tables), which can then be modified and loaded into SLiM.
 
 :::{eval-rst}
 .. autofunction:: pyslim.get_provenance
+:::
+
+
+=(sec_constants_and_flags)
+
+## Constants and flags
+
+
+:::{eval-rst}
+.. data:: NUCLEOTIDES == ['A', 'C', 'G', 'T']
+
+   Nucleotide states in nucleotide models are encoded as integers (0, 1, 2, 3),
+   so a nucleotide encoded as ``k`` refers to nucleotide
+   ``pyslim.NUCLEOTIDES[k]``.
+:::
+
+These flags are the possible values for ``node.metadata["genome_type"]``:
+
+:::{eval-rst}
+.. data:: GENOME_TYPE_AUTOSOME == 0
+
+.. data:: GENOME_TYPE_X == 1
+
+.. data:: GENOME_TYPE_Y == 2
+:::
+
+
+These flags are the possible values for ``individual.metadata["sex"]``:
+
+:::{eval-rst}
+.. data:: INDIVIDUAL_TYPE_HERMAPHRODITE == -1
+
+.. data:: INDIVIDUAL_TYPE_FEMALE == 0
+
+.. data:: INDIVIDUAL_TYPE_MALE == 1
+:::
+
+This is a flag used in ``individual.metadata["flags"]``:
+:::{eval-rst}
+.. data:: INDIVIDUAL_FLAG_MIGRATED == 0x01
+:::
+
+Finally, these are used in ``individual.flags``:
+
+:::{eval-rst}
+.. data:: INDIVIDUAL_ALIVE == 2**16
+
+.. data:: INDIVIDUAL_REMEMBERED == 2**17
+
+.. data:: INDIVIDUAL_RETAINED == 2**18
 :::
 

@@ -21,8 +21,8 @@ html:
   use_edit_page_button: true
   # Do not edit this - the version placeholder is replaced by the
   # current version during a distribution build in the Makefile
-  extra_navbar: msprime __PYSLIM_VERSION__
-  extra_footer: msprime __PYSLIM_VERSION__
+  extra_navbar: pyslim __PYSLIM_VERSION__
+  extra_footer: pyslim __PYSLIM_VERSION__
 
 sphinx:
     extra_extensions:

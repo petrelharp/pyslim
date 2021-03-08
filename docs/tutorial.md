@@ -14,16 +14,18 @@ kernelspec:
 ```{code-cell}
 :tags: [remove-cell]
 
-    import pyslim, tskit, msprime
-    from IPython.display import SVG
-    import numpy as np
+import pyslim, tskit, msprime
+from IPython.display import SVG
+import numpy as np
+import util
+
+np.random.seed(1234)
 ```
 
 
 # Tutorial
 
-There are several very common uses of tree sequences in SLiM/pyslim. These are covered
-in this tutorial.
+This tutorial covers the most common uses of tree sequences in SLiM/pyslim.
 
 ## Recapitation, simplification, and mutation
 
@@ -50,9 +52,8 @@ extract whole-genome genotype data for only 1,000 individuals. Here's one way to
 2. {meth}`.SlimTreeSequence.simplify` : For efficiency, subset the tree
    sequence to only the information relevant for those 1,000 individuals
    we wish to sample.
-   **Important: this should probably come *after* recapitation (see below).**
 
-3. {meth}`msprime.sim_mutations` : Adds neutral mutations to the tree sequence.
+3. {meth}`msprime.sim_mutations` : Add neutral mutations to the tree sequence.
 
 
 These steps are described below. First, to get something to work with,
@@ -62,8 +63,13 @@ fluctuating around 1000 individuals, for 1000 generations:
 ```{literalinclude} example_sim.slim
 ```
 
-(Note: by setting the random seed in the simulation,
-you should get exactly the same results as the code below.)
+You can run this in the shell,
+setting the random seed so you get exactly the same results
+as in the code below:
+```{code-cell}
+%%bash
+slim -s 23 example_sim.slim
+```
 
 
 (sec_tutorial_recapitation)=
@@ -77,7 +83,9 @@ scale: 42%
 align: right
 name: pedigree_recapitate
 ---
-CAPTION TODO
+Recapitation adds the green nodes by coalescent simulation.
+(See {ref}`the introduction <sec_left_in_tree_sequence>`
+for a diagram of the previous state.)
 ```
 
 Although we can initialize a SLiM simulation with the results of a coalescent simulation,
@@ -85,13 +93,13 @@ if during the simulation we don't actually use the genotypes for anything, it
 can be much more efficient to do this afterwards, hence only doing a coalescent
 simulation for the portions of the first-generation ancestors that have
 not yet coalesced. (See the SLiM manual for more explanation.)
-This is depicted in the figure at the right:
+This is depicted in {numref}`figure {number} <pedigree_recapitate>`:
 imagine that at some sites, some of the samples
 don't share a common ancestor within the SLiMulated portion of history (shown in blue).
 Recapitation starts at the *top* of the genealogies,
 and runs a coalescent simulation back through time
 to fill out the rest of genealogical history relevant to the samples.
-The purple chromosomes are new ancestral nodes that have been added to the tree sequence.
+The green chromosomes are new ancestral nodes that have been added to the tree sequence.
 This is important - if we did not do this,
 then effectively we are assuming the initial population would be genetically homogeneous,
 and so our simulation would have less genetic variation than it should have
@@ -101,7 +109,9 @@ Doing this is as simple as:
 
 ```{code-cell}
 orig_ts = pyslim.load("example_sim.trees")
-rts = orig_ts.recapitate(recombination_rate = 1e-8, Ne=200, random_seed=5)
+rts = orig_ts.recapitate(
+            recombination_rate=1e-8,
+            Ne=200, random_seed=5)
 ```
 
 We can check that this worked as expected, by verifying that after recapitation
@@ -110,12 +120,15 @@ all trees have only one root:
 ```{code-cell}
 orig_max_roots = max(t.num_roots for t in orig_ts.trees())
 recap_max_roots = max(t.num_roots for t in rts.trees())
-print(f"Before recapitation, the max number of roots was {orig_max_roots}, "
-     f"and after recapitation, it was {recap_max_roots}.")
-# Before recapitation, the max number of roots was 15, and after recapitation, it was 1.
+print(f"Maximum number of roots before recapitation: {orig_max_roots}")
+print(f"After recapitation: {recap_max_roots}")
 ```
 
-Note that demography needs to be set up explicitly - if you have more than one population,
+The {meth}`.SlimTreeSequence.recapitate` method
+is just a thin wrapper around {func}`msprime.sim_ancestry`,
+and you need to set up demography explicitly - for instance, in the example above
+we've simulated from an ancestral population of ``Ne=200`` diploids.
+If you have more than one population,
 you must set migration rates or else coalescence will never happen
 (see below for an example, and {meth}`.SlimTreeSequence.recapitate` for more).
 
@@ -139,7 +152,7 @@ a position or "end" indicates the end of a recombination block such that its ass
 In msprime, we will pass in a {class}`msprime.RateMap`,
 which requires two things:
 
-- ``position:``: A list of n+1 positions, starting at 0, and ending in the sequence length over which the RateMap will apply.
+- ``position``: A list of n+1 positions, starting at 0, and ending in the sequence length over which the RateMap will apply.
 - ``rate``: A list of n positive rates that apply between each position.
 
 So, msprime needs a vector of positions that is 1 longer than what you give SLiM,
@@ -151,8 +164,10 @@ which means that the genomic interval from 0.0 to 100.0 includes 0.0 but does no
 If SLiM has a final genomic position of 99, then it could have mutations occurring at position 99.
 Such mutations would *not* be legal, on the other hand, if we set the tskit sequence length to 99,
 since the position 99 would be outside of the interval from 0 to 99.
-So, in SLiM when we record tree sequences, we use the last position plus one
-- i.e., the length of the genome - as the rightmost coordinate.
+Said another way, if SLiM's final position is 99, the total sequence length is 100,
+and so we need to set the end of the genome to 100.
+The upshot is that we need to use SLiM's last position plus one - i.e., 
+the length of the genome - as the rightmost coordinate.
 
 For instance, suppose that we have a recombination map file in the following (tab-separated) format:
 
@@ -164,8 +179,8 @@ This describes recombination rates across a 100Mb genome with higher rates on th
 and lower rates in the middle (0.25 cM/Mb between 50Mb and 85Mb).
 The first column gives the starting position, in bp,
 for the window whose recombination rate is given in the second column.
-(*Note:* this is *not* a standard format for recombination maps
-- it is more usual for the *starting* position to be listed!)
+(*Note:* this is *not* a standard format for recombination maps -
+it is more usual for the *starting* position to be listed!)
 
 Here is SLiM code to read this file and set the recombination rates:
 
@@ -191,9 +206,6 @@ Now, here's code to take the same recombination map used in SLiM,
 and use it for recapitation in msprime:
 
 ```{code-cell}
-import msprime, pyslim
-import numpy as np
-ts = pyslim.load("example_sim.trees")
 positions = []
 rates = []
 with open('_static/recomb_rates.tsv', 'r') as file:
@@ -208,21 +220,22 @@ with open('_static/recomb_rates.tsv', 'r') as file:
 positions.insert(0, 0) 
 # step 2
 positions[-1] += 1
-assert positions[-1] == ts.sequence_length
+assert positions[-1] == orig_ts.sequence_length
 
 recomb_map = msprime.RateMap(positions, rates)
-rts = ts.recapitate(recombination_map=recomb_map, Ne=1000)
+rts = orig_ts.recapitate(
+                recombination_map=recomb_map,
+                Ne=200, random_seed=7)
 assert(max([t.num_roots for t in rts.trees()]) == 1)
 ```
-
-Next, one might wish to sanity check the result,
-for instance, by setting rates in one interval to zero
-and making sure that no recombinations occurred in that region.
+(As before, you should *not* usually explicitly set
+the random seed in your scripts; we set it here so
+the content of this document does not change.)
 
 :::{note}
-Starting from msprime 1.0, there will be a ``discrete`` argument to
-the RecombinationMap class; setting ``discrete=True`` will more closely
-match the recombination model of SLiM.
+Starting from msprime 1.0, the default model of recombination
+in msprime is *discrete* - recombinations only occur at integer
+locations - which matches SLiM's model of recombination.
 :::
 
 
@@ -236,7 +249,8 @@ scale: 42%
 align: right
 name: pedigree_simplify
 ---
-CAPTION TODO
+The result of simplifying the tree sequence
+in figure {numref}`figure {number} <pedigree_recapitate>`.
 ```
 
 Probably, your simulations have produced many more fictitious genomes
@@ -248,12 +262,13 @@ implements under the hood when outputting a tree sequence, as described in
 {ref}`the introduction <sec_left_in_tree_sequence>`).
 
 Depicted in the figure at the right is the result of applying an explicit call to
-``simplify()`` to our example tree sequence. In the call we asked to keep only 4
+{meth}`tskit.TreeSequence.simplify` to our example tree sequence.
+In the call we asked to keep only 4
 genomes (contained in 2 of the individuals in the current generation). This has
 substantially simplified the tree sequence, because only information relevant to the
 genealogies of the 4 sample nodes has been kept. (Precisely, simplification retains only
 nodes of the tree sequence that are branching points of some marginal genealogy -- see
-`Kelleher et al 2018 <https://doi.org/10.1371/journal.pcbi.1006581>`_ for details.)
+[Kelleher et al 2018](https://doi.org/10.1371/journal.pcbi.1006581) for details.)
 While simplification sounds very appealing - it makes things simpler after all -
 it is often not necessary in practice, because tree sequences are very compact,
 and many operations with them are quite fast.
@@ -281,8 +296,8 @@ Recapitation would produce a shared history for these two chromosomes,
 that would coalesce some time longer ago than 1,000 generations.
 However, if we simplified first, then those two branches going back 1,000 generations would be removed,
 since they don't convey any information about the shape of the tree;
-and so recapitation could well produce a common ancestor more recently than 1,000 generations,
-which is inconsistent with the SLiM simulation.
+and so recapitation might produce a common ancestor more recently than 1,000 generations,
+which would be inconsistent with the SLiM simulation.
 
 After recapitation,
 simplification to the history of 100 individuals alive today
@@ -296,13 +311,12 @@ keep_indivs = np.random.choice(alive_inds, 100, replace=False)
 keep_nodes = []
 for i in keep_indivs:
   keep_nodes.extend(rts.individual(i).nodes)
-sts = rts.simplify(keep_nodes)
 
-print(f"Before, there were {rts.num_samples} sample nodes (and {rts.num_individuals} individuals) "
-      f"in the tree sequence, and now there are {sts.num_samples} sample nodes "
-      f"(and {sts.num_individuals} individuals).")
-# Before, there were 1930 sample nodes (and 965 individuals) in the tree sequence,
-# and now there are 200 sample nodes (and 115 individuals).
+sts = rts.simplify(keep_nodes, keep_input_roots=True)
+
+print(f"Before, there were {rts.num_samples} sample nodes (and {rts.num_individuals} individuals)")
+print(f"in the tree sequence, and now there are {sts.num_samples} sample nodes ")
+print(f"(and {sts.num_individuals} individuals).")
 ```
 
 **Note** that you must pass simplify a list of *node IDs*, not individual IDs.
@@ -332,7 +346,7 @@ CAPTION TODO
 If you have recorded a tree sequence in SLiM, likely you have not included any neutral mutations,
 since it is much more efficient to simply add these on afterwards.
 To add these (in a completely equivalent way to having included them during the simulation),
-you can use the {meth}`msprime.sim_mutations` function, which returns a new tree sequence with additional mutations.
+you can use the {func}`msprime.sim_mutations` function, which returns a new tree sequence with additional mutations.
 Continuing with the cartoons from above, these are added to each branch of the tree sequence
 at the rate per unit time that you request.
 We'll add these using the {class}`msprime.SLiMMutationModel`, so that the file can be read back into SLiM,
@@ -350,9 +364,8 @@ ts = pyslim.SlimTreeSequence(
            )
     )
 
-print(f"The tree sequence now has {ts.num_mutations} mutations, "
-     f"and mean pairwise nucleotide diversity is {ts.diversity()}.")
-# The tree sequence now has 28430 mutations, and mean pairwise nucleotide diversity is 2.3319e-05.
+print(f"The tree sequence now has {ts.num_mutations} mutations,")
+print(f"and mean pairwise nucleotide diversity is {ts.diversity():0.3e}.")
 ```
 
 
@@ -375,8 +388,8 @@ What's going on here? Let's step through the code.
     {class}`pyslim.SlimTreeSequence`, because {meth}`msprime.sim_mutations`
     returns a standard {class}`tskit.TreeSequence`,
     and by converting it back into a ``pyslim`` tree sequence we can still use the methods
-    defined by ``pyslim``. (The conversion does not modify the tree sequence at all,
-    it only adds the ``.slim_generation`` attribute, however.)
+    defined by ``pyslim``, and ensures the reference sequence (if present)
+    is not lost.
 
 
 ## Obtaining and saving individuals
@@ -392,6 +405,11 @@ but with two populations exchanging migrants:
 
 ```{literalinclude} migrants.slim
 ```
+Let's run it:
+```{code-cell}
+%%bash
+slim -s 32 migrants.slim
+```
 
 The first, most common method to extract individuals is simply to
 get all those that were alive at a particular time, using
@@ -404,14 +422,13 @@ all those alive at the end of the simulation
 orig_ts = pyslim.load("migrants.trees")
 alive = orig_ts.individuals_alive_at(0)
 
-print(f"There are {len(alive)} individuals alive from the final generation.")
-# There are 2020 individuals alive from the final generation.
+print(f"There are {len(alive)} individuals alive in the final generation.")
 ```
 
 These are individual IDs, and we can use ``ts.individual( )`` to get information
 about each of these individuals from their ID.
 For instance,
-to then count up how many of these individuals are in each population,
+to count up how many of these individuals are in each population,
 we could do:
 
 ```{code-cell}
@@ -422,14 +439,12 @@ for i in alive:
 
 for pop, num in enumerate(num_alive):
   print(f"Number of individuals in population {pop}: {num}")
-
-# Number of individuals in population 0: 0
-# Number of individuals in population 1: 984
-# Number of individuals in population 2: 1036
 ```
 
+:::{note}
 Our SLiM script started numbering populations at 1, while tskit starts counting at 0,
 so there is an empty "population 0" in a SLiM-produced tree sequence.
+:::
 
 Now, let's recapitate and mutate the tree sequence.
 Recapitation takes a bit more thought, because we have to specify a migration matrix
@@ -468,16 +483,13 @@ for i in ts.individuals_alive_at(0):
   pop_nodes[ind.population].extend(ind.nodes)
 
 diversity = ts.diversity(pop_nodes[1:])
-divergence = ts.divergence(pop_nodes[1:], indexes=[(0,1)])
+divergence = ts.divergence(pop_nodes[1:])
 
-print(f"There are {ts.num_mutations} mutations across {ts.num_trees} distinct "
-     f"genealogical trees describing relationships among {ts.num_samples} "
-     f"sampled genomes, with a mean genetic diversity of {diversity[0]} and "
-     f"{diversity[1]} within the two populations, and a mean divergence of "
-     f"{divergence[0]} between them.")
-# There are 115500 mutations across 50613 distinct genealogical trees describing relationships
-# among 4040 sampled genomes, with a mean genetic diversity of 9.064e-05 and 9.054e-05 within
-# the two populations, and a mean divergence of 9.135839855153494e-05 between them.
+print(f"There are {ts.num_mutations} mutations across {ts.num_trees} distinct")
+print(f"genealogical trees describing relationships among {ts.num_samples}")
+print(f"sampled genomes, with a mean genetic diversity of {diversity[0]:0.3e}")
+print(f"and {diversity[1]:0.3e} within the two populations,")
+print(f"and a mean divergence of {divergence:0.3e} between them.")
 ```
 
 
@@ -490,20 +502,12 @@ but as a quick introduction, here is the information available
 about an individual in the previous example:
 
 ```{code-cell}
-print(ts.individual(0))
-
-# {'id': 0, 'flags': 65536,
-#  'location': array([0., 0., 0.]),
-#  'metadata': {
-#               'pedigree_id': 1003551,
-#               'age': 1,
-#               'subpopulation': 1,
-#               'sex': 0,
-#               'flags': 0
-#              },
-#  'nodes': array([4000, 4001], dtype=int32),
-#  'population': 1,
-#  'time': 16.0}
+:tags: ["remove-output"]
+ind = ts.individual(0)
+```
+```{code-cell}
+:tags: ["remove-input"]
+util.pp(ind)
 ```
 
 Some information is generic to individuals in tree sequences of any format:
@@ -517,15 +521,15 @@ Other information, contained in the ``metadata`` field, is specific to tree sequ
 produced by SLiM. This is described in more detail in the SLiM manual, but briefly:
 
 - the  ``pedigree_id`` is SLiM's internal ID for the individual,
-- ``age`` and ``subpopulation`` are their age and population at death, or at the time
+- ``age`` and ``subpopulation`` are their age and population at the time they
+  were recorded, or at the time
   the simulation stopped if they were still alive  (NB: SLiM uses the word
   "subpopulation" for what is simply called a "population" in tree-sequence parlance)
 - ``sex`` is their sex (as an integer, one of {data}`.INDIVIDUAL_TYPE_FEMALE`,
-  {data}`.INDIVIDUAL_TYPE_MALE`, or {data}`.INDIVIDUAL_TYPE_HERMAPHRODITE`),
-
-:::{todo}
-Add description of ``metadata["flags"]``: how does this differ from ``individual.flags``?
-:::
+  {data}`.INDIVIDUAL_TYPE_MALE`, or {data}`.INDIVIDUAL_TYPE_HERMAPHRODITE`).
+- ``flags`` holds additional information about the individual recorded by SLiM
+  (currently, only whether the individual has migrated or not:
+  see :ref:`sec_constants_and_flags`).
 
 
 We can use this metadata in many ways, for example, to create an age distribution by sex:
@@ -543,30 +547,6 @@ for i in ts.individuals_alive_at(0):
 print(f"number\t{age_labels[0]}\t{age_labels[1]}")
 for age, x in enumerate(age_table):
   print(f"{age}\t{x[0]}\t{x[1]}")
-
-# number  females   males
-# 0        327.0    343.0
-# 1        213.0    226.0
-# 2        165.0    144.0
-# 3         99.0    112.0
-# 4         79.0    68.0
-# 5         48.0    37.0
-# 6         31.0    38.0
-# 7         16.0    13.0
-# 8         10.0     8.0
-# 9          7.0    10.0
-# 10         4.0     3.0
-# 11         3.0     4.0
-# 12         4.0     1.0
-# 13         2.0     1.0
-# 14         1.0     0.0
-# 15         0.0     1.0
-# 16         0.0     0.0
-# 17         1.0     0.0
-# 18         0.0     0.0
-# 19         0.0     0.0
-# 20         0.0     0.0
-# 21         1.0     0.0
 ```
 
 We have looked up how to interpret the ``sex`` attribute
@@ -606,11 +586,9 @@ sub_ts = ts.simplify(sample_nodes)
 The resulting tree sequence does indeed have fewer individuals and fewer trees:
 
 ```{code-cell}
-print(f"There are {sub_ts.num_mutations} mutations across {sub_ts.num_trees} distinct "
-     f"genealogical trees describing relationships among {sub_ts.num_samples} "
-     f"sampled genomes, with a mean overall genetic diversity of {sub_ts.diversity()}.")
-# There are 44576 mutations across 25154 distinct genealogical trees describing relationships
-# among 40 sampled genomes, with a mean overall genetic diversity of 9.087-05.
+print(f"There are {sub_ts.num_mutations} mutations across {sub_ts.num_trees} distinct")
+print(f"genealogical trees describing relationships among {sub_ts.num_samples} sampled genomes,")
+print(f"with a mean overall genetic diversity of {sub_ts.diversity()}.")
 ```
 
 
@@ -735,10 +713,6 @@ for ind in ts.individuals():
 
 for k in indiv_types:
   print(f"Number of individuals that are {k}: {indiv_types[k]}")
-
-# Number of individuals that are remembered: 0
-# Number of individuals that are retained: 0
-# Number of individuals that are alive: 2012
 ```
 
 :::{note}
@@ -750,40 +724,101 @@ so these are no longer present, unless you specifically Remember them.
 :::
 
 
-## Coalescent simulation for SLiM
+## Generating intial diversity with msprime
 
-The {func}`.annotate` command helps make this easy, by adding default
-information to a tree sequence, allowing it to be read in by SLiM. This will
-simulate a tree sequence with msprime, add SLiM information, and write it out
-to a ``.trees`` file:
+Suppose now that we'd like to *start* a SLiM simulation
+with the result of a coalescent simulation.
+For instance, we might want to do this instead of recapitating
+if we wanted to use msprime to generate genetic diversity that
+would then be selected on during the SLiM simulation.
+To do this, we'll:
+1. simulate a tree sequence with msprime,
+2. add SLiM information to the nodes and individuals,
+3. add SLiM mutations, and
+4. write it out to a ``.trees`` file.
 
+First, we'll (1) run a simulation of 1 Mb of genome sampled in 200 diploids
+in a population of 1000 diploids,
+and (2) use the {func}`.annotate` function to add default SLiM metadata to the result:
 ```{code-cell}
-import msprime
-import pyslim
-
-# simulate a tree sequence of 12 sample genomes
-ts = msprime.sim_ancestry(12, recombination_rate=1e-8, sequence_length=1e6)
-new_ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
-new_ts.dump("initialize_nonWF.trees")
+demog = msprime.Demography()
+demog.add_population(initial_size=1000)
+ts = msprime.sim_ancestry(
+            samples=200,
+            demography=demog,
+            recombination_rate=1e-8,
+            sequence_length=1e6,
+            random_seed=5)
+ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
+assert ts.num_individuals == 200
+assert ts.num_samples == 400
 ```
-
-
-Note that we have not added mutations
-(which we would have done with {meth}`msprime.sim_mutations`).
-This is because we are simulating a neutral model,
-and so will add them at the end.
-Also note that we have set ``slim_generation`` to 1;
+We have set ``slim_generation`` to 1;
 this means that as soon as we load the tree sequence into SLiM,
 SLiM will set the current time counter to 1.
 (If we set ``slim_generation`` to 100, then any script blocks scheduled to happen before 100
 would not execute after loading the tree sequence.)
 
-The resulting file ``slim_ts.trees`` can be read into SLiM to be used as a starting state,
-as illustrated in this minimal example::
+We now have 200 diploids (so, 400 sampled nodes).
+Here's individual 199, which hsa SLiM metadata:
+```{code-cell}
+:tags: ["remove-output"]
+ind = ts.individual(199)
+print(ind)
+```
+```{code-cell}
+:tags: ["remove-input"]
+util.pp(ind)
+```
+Looking at the ``metadata`` above, we see the default values are ``age=0``
+hermaphrodites (``sex=-1``), for instance.
+
+Now let's add SLiM mutations.
+These will be neutral, as {func}`msprime.sim_mutation`
+doesn't have the ability to dynamically modify the selection coefficients
+stored in the mutation metadata.
+To modify the mutations to be under selection,
+see {ref}`sec_vignette_coalescent_diversity`.
+```{code-cell}
+ts = pyslim.SlimTreeSequence(
+        msprime.sim_mutations(
+                    ts, rate=1e-8,
+                    model=msprime.SLiMMutationModel(type=0),
+                    random_seed=9
+        )
+     )
+```
+Now the mutations have SLiM metadata:
+```{code-cell}
+:tags: ["remove-output"]
+print(f"Number of mutations: {ts.num_mutations}")
+print("First mutation:")
+print(ts.mutation(0))
+```
+```{code-cell}
+:tags: ["remove-input"]
+print(f"Number of mutations: {ts.num_mutations}")
+print("First mutation:")
+util.pp(ts.mutation(0))
+```
+
+Finally, we write this out to a file that can be loaded in to SLiM:
+```{code-cell}
+ts.dump("initialize_nonWF.trees")
+```
+
+Here's a minimal SLiM script that reads in the tree sequence file
+and runs it for a bit longer.
 
 ```{literalinclude} neutral_restart.slim
 ```
 
+```{code-cell}
+%%bash
+slim -s 123 neutral_restart.slim
+```
+
+A more in-depth example is provided at {ref}`sec_vignette_coalescent_diversity`.
 See the SLiM manual for more about this operation.
 
 
@@ -795,59 +830,49 @@ Let's see how to extract information about these mutations.
 
 ```{literalinclude} selection.slim
 ```
+```{code-cell}
+%%bash
+slim -s 23 selection.slim
+```
 
-If you want to follow along exactly with the below, set the seed to 23.
 First, let's see how many mutations there are:
 
 ```{code-cell}
 ts = pyslim.load("selection.trees")
-ts.num_mutations
-# 5961
-ts.num_sites
-# 5941
+print(f"Number of sites: {ts.num_sites}")
+print(f"Number of mutations: {ts.num_mutations}")
 ```
 
 Note that there are more mutations than sites;
 that's because some sites (looks like 20 of them) have multiple mutations.
-The information about the mutation is put in the mutation's metadata
-(formatted by hand for clarity):
+The information about the mutation is put in the mutation's metadata.
+Here's the first mutation:
 
 ```{code-cell}
+:tags: ["remove-output"]
 m = ts.mutation(0)
 print(m)
-# {'id': 0,
-#  'site': 0,
-#  'node': 4425,
-#  'time': 1.0,
-#  'derived_state': '1997240',
-#  'parent': -1,
-#  'metadata': {
-#     'mutation_list': [
-#           { 'mutation_type': 2,
-#             'selection_coeff': 1.4618088006973267,
-#             'subpopulation': 1,
-#             'slim_time': 992,
-#             'nucleotide': -1
-#           }
-#     ]
-#  } 
-# }
-
-print(ts.site(m.site))
-# {'id': 0,
-#  'position': 126.0,
-#   'ancestral_state': '',
-#    'mutations': [...],
-#    'metadata': b''}
 ```
-
+```{code-cell}
+:tags: ["remove-input"]
+util.pp(m)
+```
 Here, `m.site` tells us the ID of the *site* on the genome that the mutation occurred at, 
-and we can pull up information about that with the `ts.site( )` method.
-This mutation occurred at position 126 along the genome (from `site.position`)
+and we can pull up information about that with the `ts.site( )` method:
+```{code-cell}
+:tags: ["remove-output"]
+print(ts.site(m.site))
+```
+```{code-cell}
+:tags: ["remove-input"]
+util.pp(ts.site(m.site))
+```
+This mutation occurred at position 54 along the genome (from `site.position`)
 which previously had no mutations (since `site.ancestral_state` is the empty string, `''`)
-and was given SLiM mutation ID 1997240 (`m.derived_state`).
+and was given SLiM mutation ID 1653896 (`m.derived_state`).
 The metadata (`m.metadata`, a dict) tells us that 
-the mutation has selection coefficient -0.07989, and occurred in population 1 in generation 998.
+the mutation has selection coefficient 1.5597 and occurred in population 1 in generation 827,
+which was 172 generations ago.
 This is not a nucleotide model, so the nucleotide entry is `-1`.
 Note that `m.time` and `m.metadata['mutation_list'][0]['slim_time']` are in this case redundant:
 they contain the same information, but the first is in tskit time
@@ -857,101 +882,66 @@ and the second is using SLiM's internal "generation" counter.
 Also note that the mutation's metadata is a *list* of metadata entries.
 That's because of SLiM's mutation stacking feature.
 We know that some sites have more than one mutation,
-so to get an example let's pull out the last mutation from one of those sites.
+so to get an example let's pull out one such mutation.
 In this case,
 `m.metadata['mutation_list']` is a list of length one,
 so the mutation was not stacked on top of previous ones.
 
 ```{code-cell}
-for s in ts.sites():
-  if len(s.mutations) > 1:
-     m = s.mutations[-1]
+:tags: ["remove-output"]
+for m in ts.mutations():
+  if m.parent != tskit.NULL:
      break
 
 print(m)
-# {'id': 193,
-#  'site': 192,
-#  'node': 767,
-#  'time': 0.0,
-#  'derived_state': '1998266,1293043',
-#  'parent': 192,
-#  'metadata': {
-#      "mutation_list": [
-#          {
-#           "mutation_type": 1,
-#           "selection_coeff": -0.08409399539232254,
-#           "population": 1,
-#           "slim_time": 999,
-#           "nucleotide": -1
-#          },
-#          {
-#           "mutation_type": 1,
-#           "selection_coeff": -0.013351504690945148,
-#           "population": 1,
-#           "slim_time": 646,
-#           "nucleotide": -1
-#          }
-#      ]
-#   }
-# }
-
 print(ts.mutation(m.parent))
-# {'id': 192,
-#  'site': 192,
-#  'node': 2940,
-#  'time': 353,
-#  'derived_state': '1293043',
-#  'parent': -1,
-#  'metadata': {
-#      "mutation_list": [
-#          {
-#           "mutation_type": 1,
-#           "selection_coeff": -0.013351504690945148,
-#           "population": 1,
-#           "slim_time": 646,
-#           "nucleotide": -1
-#          }
-#      ]
-#  } 
-# }
+```
+```{code-cell}
+:tags: ["remove-input"]
+util.pp(m)
+util.pp(ts.mutation(m.parent))
 ```
 
-
-This mutation (which is `ts.mutation(193)` in the tree sequence)
-was the result of SLiM adding a new mutation of type `m1` and selection coefficient -0.084
-on top of an existing mutation, also of type `m1` and with selection coefficient -0.013.
+This mutation (which is `ts.mutation(1020)` in the tree sequence)
+was the result of SLiM adding a new mutation of type `m1` and selection coefficient -0.0032
+on top of an existing mutation, also of type `m1` and with selection coefficient 0.3086.
 This happened at generation 999 (i.e., at tskit time 0.0 time units ago),
-and the older mutation occurred at generation 646 (at tskit time 353 time units ago).
-The older mutation has SLiM mutation ID 1293043,
-and the newer mutation had SLiM mutation ID 1998266,
-so the resulting "derived state" is `'1998266,1293043'`.
+and the older mutation occurred at generation 274 (at tskit time 725 time units ago).
+The older mutation has SLiM mutation ID 547531,
+and the newer mutation had SLiM mutation ID 1998096,
+so the resulting "derived state" is `'1998096,547531'`.
 
 Now that we understand how SLiM mutations are stored in a tree sequence,
 let's look at the allele frequencies.
 The allele frequency spectrum for *all* mutations can be obtained using the
-`ts.allele_frequency_spectrum` method,
+{meth}`tskit.TreeSequence.allele_frequency_spectrum` method,
 shown here for a sample of size 10 to make the output easy to see:
 
 ```{code-cell}
 samps = np.random.choice(ts.samples(), 10, replace=False)
-ts.allele_frequency_spectrum([samps], span_normalise=False, polarised=True)
-# [3898, 63, 9, 2, 415, 630, 465, 0, 0, 0, 0]
+afs = ts.allele_frequency_spectrum([samps], span_normalise=False, polarised=True)
+print(afs.astype('int'))
 ```
 
 (The `span_normalise=False` argument gives us counts rather than a density per unit length.)
-This shows us that there are 3898 alleles that are found among the tree sequence's samples
-that are not present in any of our 10 samples, 63 that are present in just one, etcetera.
+This shows us that there are 4177 alleles that are found among the tree sequence's samples
+that are not present in any of our 10 samples, 86 that are present in just one, etcetera.
 The surprisingly large number that are near 50% frequency are perhaps positively selected
 and on their way to fixation: we can check if that's true next.
-You may have noticed that the sum of the allele frequency spectrum is 5482,
-which is not obviously related to the number of mutations (5961) *or* the number of sites (5941).
-That's because every derived allele seen in the samples counts once in the polarised allele frequency spectrum,
-and some sites have more than two alleles.
+You may have noticed that the sum of the allele frequency spectrum is 5243,
+which is not obviously related to the number of mutations (6044) *or* the number of sites (6020).
+That's because each derived allele that is inherited by some but not all of the samples
+in the tree sequence is counted in the polarised allele frequency spectrum:
+Fixed mutations, or mutations that were entirely "overwritten" by subsequent mutations,
+do not contribute.
 Here's how we can check this:
 
 ```{code-cell}
-sum([len(set(v.genotypes)) - 1 for v in ts.variants()])
-# 5482
+afs_total = 0
+for v in ts.variants():
+    if len(set(v.genotypes)) > 1:
+        afs_total += len(set(v.genotypes) - set([0]))
+print(afs_total)
 ```
 
 At time of writing, we don't have a built-in ``allele_frequency`` method,
@@ -989,7 +979,8 @@ for j, s in enumerate(ts.sites()):
      mut_type[j] = mt[0]
 ```
 
-Now, we compute the frequency spectrum, and aggregate it.
+Now, we compute the frequency spectrum, and aggregate it
+to produce the allele frequency spectrum separately by mutation type.
 We'll use the function `np.bincount` to do this efficiently:
 
 ```{code-cell}
@@ -1001,74 +992,46 @@ for k in range(3):
   mut_afs[:, k] = np.bincount(freqs[mut_type == k+1], minlength=len(samps) + 1)
 
 print(mut_afs)
-# array([[3428,  448,    3],
-#        [  50,   13,    0],
-#        [   6,    3,    0],
-#        [   1,    1,    0],
-#        [ 237,  177,    1],
-#        [ 367,  263,    0],
-#        [ 275,  188,    2],
-#        [   0,    0,    0],
-#        [   0,    0,    0],
-#        [   0,    0,    0],
-#        [ 226,  252,    0]])
 ```
 
-The first column is the deleterious alleles, and the second is the beneficial ones;
-the third column describes the six sites that had both types of mutation.
+The first column gives the AFS among these 10 samples for the deleterious alleles,
+the second for the beneficial mutations;
+the third column for the seven sites that had both types of mutation.
 Interestingly, there are similar numbers of both types of mutation at intermediate frequency:
 perhaps because beneficial mutations are sweeping linked deleterious alleles along with them.
 Many fewer benefical alleles are at low frequency:
-3,428 deleterious alleles are not found in our sample of 10 genomes,
-while only 448 beneficial alleles are.
+3,666 deleterious alleles are not found in our sample of 10 genomes,
+while only 486 beneficial alleles are.
 
 Finally, let's pull out information on the allele with the largest selection coefficient.
 
 ```{code-cell}
-sel_coeffs = np.array([m.metadata["mutation_list"][0]["selection_coeff"] for m in ts.mutations()])
+:tags: ["remove-output"]
+sel_coeffs = np.array([
+    m.metadata["mutation_list"][0]["selection_coeff"]
+    for m in ts.mutations()
+])
 which_max = np.argmax(sel_coeffs)
 m = ts.mutation(which_max)
-print(m)
-# {'id': 256,
-#  'site': 255,
-#  'node': 2941,
-#  'time': 594.0,
-#  'derived_state': '809254',
-#  'parent': -1,
-#  'metadata': {
-#     'mutation_list': [
-#        {
-#         'mutation_type': 2,
-#         'selection_coeff': 5.109511852264404,
-#         'population': 1,
-#         'slim_time': 405,
-#         'nucleotide': -1
-#        }
-#     ]
-#  }
-# }
-
 print(ts.site(m.site))
-# {'id': 255,
-#  'position': 44430.0,
-#  'ancestral_state': '',
-#  'mutations': [...],
-#  'metadata': b''}
+```
+```{code-cell}
+:tags: ["remove-input"]
+util.pp(ts.site(m.site))
 ```
 
-This allele had a whopping selection coefficient of 5.1,
+This allele had a whopping selection coefficient of 4.94
 and appeared about halfway through the simulation.
 Let's find its frequency in the full population:
 
 ```{code-cell}
 full_freqs = allele_counts(ts)
-print(f"Allele is found in {full_freqs[m.site][0]} copies,"
-     f" and has selection coefficient {m.metadata['mutation_list'][0]['selection_coeff']}.")
-# Allele is found in 1004.0 copies, and has selection coefficient 5.109511852264404.
+print(f"Allele is found in {full_freqs[m.site][0]} copies,")
+print(f"and has selection coefficient {m.metadata['mutation_list'][0]['selection_coeff']}.")
 ```
 
 The allele is at about 50% in the population, so it is probably on its way to fixation.
-Using its SLiM ID (which is shown in its derived state, ``809254``),
+Using its SLiM ID (which is shown in its derived state, ``1616148``),
 we could reload the tree sequence into SLiM,
 restart the simulation, and use its ID to track its subsequent progression.
 

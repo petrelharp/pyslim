@@ -140,8 +140,8 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     You can create a :class:`.SlimTreeSequence` using one of
 
-    - :meth:`.SlimTreeSequence.load_tables` :meth:`.SlimTreeSequence.load`,
-    - :func:`.load`, or :func:`.load_tables`.
+    - :meth:`.SlimTreeSequence.load_tables`, :meth:`.SlimTreeSequence.load`,
+    - :func:`load`, or :func:`load_tables`.
 
     :ivar reference_sequence: None, or an string of length equal to the sequence
         length that gives the entire reference sequence for nucleotide models.
@@ -230,7 +230,7 @@ class SlimTreeSequence(tskit.TreeSequence):
         Creates the :class:`SlimTreeSequence` defined by the tables.
 
         :param TableCollection tables: A set of tables, as produced by SLiM
-            or by annotate_defaults().
+            or by :func:`annotate_defaults`.
         :param TableCollection reference_sequence: An optional string of ACGT giving
             the reference sequence.
         :rtype SlimTreeSequence:
@@ -242,7 +242,7 @@ class SlimTreeSequence(tskit.TreeSequence):
     def dump(self, path, **kwargs):
         '''
         Dumps the tree sequence to the path specified. This is mostly just a wrapper for
-        tskit.TreeSequence.dump(), but also writes out the reference sequence.
+        :func:`tskit.TreeSequence.dump`, but also writes out the reference sequence.
 
         :param str path: The file path to write the TreeSequence to.
         :param kwargs: Additional keyword args to pass to tskit.TreeSequence.dump
@@ -297,18 +297,16 @@ class SlimTreeSequence(tskit.TreeSequence):
     def population(self, id_):
         '''
         Returns the population whose ID is given by `id_`, as documented in
-        :meth:`tskit.TreeSequence.population`, but with additional attributes::
-
-            slim_id, selfing_fraction, female_cloning_fraction,
-            male_cloning_fraction, sex_ratio,
-            bounds_x0, bounds_x1, bounds_y0, bounds_y1, bounds_z0, bounds_z1,
-            migration_records.
-
+        :meth:`tskit.TreeSequence.population`, but with additional attributes:
+        `slim_id`, `selfing_fraction`, `female_cloning_fraction`,
+        `male_cloning_fraction`, `sex_ratio`,
+        `bounds_x0`, `bounds_x1`, `bounds_y0`, `bounds_y1`, `bounds_z0`, `bounds_z1`,
+        and `migration_records`.
         These are all recorded by SLiM in the metadata.
 
         Note that SLiM populations are usually indexed starting from 1,
         but in tskit from zero, so there may be populations (e.g., with id_=0)
-        that have no metadata and are not used by SLiM.
+        that have no metadata and were not created by SLiM.
 
         :param int id_: The ID of the population (i.e., its index).
         '''
@@ -326,10 +324,8 @@ class SlimTreeSequence(tskit.TreeSequence):
     def individual(self, id_):
         '''
         Returns the individual whose ID is given by `id_`, as documented in
-        :meth:`tskit.TreeSequence.individual`, but with additional attributes::
-
-          time, pedigree_id, age, slim_population, sex, slim_flags.
-
+        :meth:`tskit.TreeSequence.individual`, but with additional attributes:
+        `time`, `pedigree_id`, `age`, `slim_population`, `sex`, and `slim_flags`.
         The `time` and `population` properties are extracted from the nodes,
         and an error will be thrown if the individual's nodes derive from
         more than one population or more than one time.
@@ -351,10 +347,8 @@ class SlimTreeSequence(tskit.TreeSequence):
     def node(self, id_):
         '''
         Returns the node whose ID is given by `id_`, as documented in
-        :meth:`tskit.TreeSequence.node`, but with additional attributes::
-
-           slim_id, is_null, genome_type.
-
+        :meth:`tskit.TreeSequence.node`, but with additional attributes:
+        `slim_id`, `is_null`, and `genome_type`.
         These are all recorded by SLiM in the metadata.
 
         :param int id_: The ID of the node (i.e., its index).
@@ -373,10 +367,9 @@ class SlimTreeSequence(tskit.TreeSequence):
     def mutation(self, id_):
         '''
         Returns the mutation whose ID is given by `id_`, as documented in
-        :meth:`tskit.TreeSequence.mutation`, but with additional attributes::
-
-           mutation_type, selection_coeff, population, slim_time, nucleotide.
-
+        :meth:`tskit.TreeSequence.mutation`, but with additional attributes:
+        `mutation_type`, `selection_coeff`, `population`, `slim_time`,
+        and `nucleotide`.
         These are all recorded by SLiM in the metadata.
 
         :param int id_: The ID of the mutation (i.e., its index).
@@ -414,20 +407,15 @@ class SlimTreeSequence(tskit.TreeSequence):
         coalescence. In both cases, remember that population IDs in ``tskit`` begin
         with 0, so that if your SLiM simulation has populations ``p1`` and ``p2``,
         then the tree sequence will have three populations (but with no nodes
-        assigned to population 0), so that migration rate of 1.0 between ``p1`` and
+        assigned to population 0), so that a migration rate of 1.0 between ``p1`` and
         ``p2`` needs a migration matrix of::
 
            [[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 0.0]]
 
-        In general, all defaults are whatever the defaults of ``msprime.simulate`` are;
-        this includes recombination rate, so that if neither ``recombination_rate``
-        or a ``recombination_map`` are provided, there will be *no* recombination.
-
-        However, if ``recombination_rate`` *is* provided, then recapitation will
-        use a constant rate of recombination on a discretized map -- in other words,
-        recombinations in the coalescent portion of the simulation will only occur
-        at integer locations, just as in SLiM. If you do not want this to happen,
-        you need to construct a ``recombination_map`` explicitly.
+        In general, all defaults are whatever the defaults of
+        {ref}`msprime.simulate` are; this includes recombination rate, so
+        that if neither ``recombination_rate`` or a ``recombination_map`` are
+        provided, there will be *no* recombination.
 
         :param float recombination_rate: A (constant) recombination rate,
             in units of crossovers per nucleotide per unit of time.
@@ -574,7 +562,7 @@ class SlimTreeSequence(tskit.TreeSequence):
     def slim_provenances(self):
         '''
         Returns model type, slim generation, and remembered node count from *all*
-        entries in the provenance table that is tagged with "program"="SLiM"
+        entries in the provenance table that are tagged with "program"="SLiM".
 
         :rtype ProvenanceMetadata:
         '''
@@ -686,11 +674,11 @@ class SlimTreeSequence(tskit.TreeSequence):
 
     def individual_ages_at(self, time, stage="late", remembered_stage="late"):
         """
-        Returns the *ages* of each individual at the corresponding time ago,
-        which will be `nan` if the individual is either not born yet or dead.
+        Returns the `ages` of each individual at the corresponding time ago,
+        which will be ``nan`` if the individual is either not born yet or dead.
         This is computed as the time ago the individual was born (found by the
         `time` associated with the the individual's nodes) minus the `time`
-        argument; while "death" is inferred from the individual's `age`,
+        argument; while "death" is inferred from the individual's ``age``,
         recorded in metadata. These values are the same as what would be shown
         in SLiM during the corresponding time step and stage.
 
@@ -725,15 +713,16 @@ class SlimTreeSequence(tskit.TreeSequence):
 
         When the tree sequence is written out, SLiM records the value of its
         current generation, which can be found in the metadata:
-        ts.metadata['SLiM']['generation']. In most cases, the “SLiM time”
+        ``ts.metadata['SLiM']['generation']``. In most cases, the “SLiM time”
         referred to by a time ago in the tree sequence (i.e., the value that would
         be reported by sim.generation within SLiM at the point in time thus
         referenced) can be obtained by subtracting that time ago from
-        ts.slim_generation. However, in WF models, birth happens between the
-        “early()” and “late()” stages, so if the tree sequence was written out
-        using sim.treeSeqOutput() during “early()” in a WF model, the tree
-        sequence’s times measure time before the last set of individuals are
-        born, i.e., before SLiM time step ts.slim_generation - 1.
+        ``ts.metadata['SLiM']['generation']``. However, in WF models, birth
+        happens between the “early()” and “late()” stages, so if the tree
+        sequence was written out using sim.treeSeqOutput() during “early()” in
+        a WF model, the tree sequence’s times measure time before the last set
+        of individuals are born, i.e., before SLiM time step
+        ``ts.slim_generation - 1``.
 
         In some situations (e.g., mutations added during early() in WF models)
         this may not return what you expect. See :ref:`sec_metadata_converting_times`
@@ -761,9 +750,7 @@ class SlimTreeSequence(tskit.TreeSequence):
             This method is deprecated, because from SLiM version 3.5
             the first generation individuals are no longer marked as such:
             only tree sequences from older versions of SLiM will have
-            these individuals. As part of this, the INDIVIDUAL_FIRST_GEN
-            flag does not exist, so this function returns individuals with
-            the INDIVIDUAL_RETAINED flag instead.
+            these individuals.
         """
         warnings.warn(
                 "This method is deprecated: SLiM no longer marks individuals as "

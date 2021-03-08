@@ -28,8 +28,9 @@ for entire populations. These can be used to efficiently encode both the state o
 population at various points during a simulation *as well as* the complete genomic
 ancestry. Furthermore, SLiM can "load" a saved tree sequence
 file to recreate the exact state of the population at the time it was saved.
-To do this, SLiM has added several additional types of information to the basic
+To do this, SLiM stores some additional information in the basic
 tree sequence file.
+
 
 ## Overview
 
@@ -92,13 +93,14 @@ scale: 40%
 The diagram in {numref}`figure {number} <pedigree01>`, with labels.
 ```
 
-In the recorded tree sequence the alive individuals, which in this model are those
-in the final generation, have all had their nodes marked as *samples*. As
-you may recall, this means we have their full genetic ancestry. The sample nodes,
+In the recorded tree sequence the individuals who are alive at the end of the simulation
+have their nodes marked as *samples*,
+and so we have their full genetic ancestry.
+The sample nodes,
 and the individuals containing them, are always present in the tree sequence.
 
 In contrast to the individuals containing sample nodes, you can see that all the other
-circles, representing historical (i.e. dead) individuals, have vanished, although
+circles, representing historical (i.e., dead) individuals, have vanished, although
 sometimes their nodes remain. By default, only individuals with sample nodes are recorded
 in the tree sequence; that means the other, remaining, nodes lose any information about
 which individuals they were in (the tutorial explains ways to
