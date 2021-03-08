@@ -11,6 +11,18 @@ kernelspec:
   name: python3
 ---
 
+```{code-cell}
+:tags: [remove-cell]
+
+import pyslim, tskit, msprime
+from IPython.display import SVG
+import numpy as np
+import util
+
+np.random.seed(1234)
+```
+
+
 (sec_vignette_space)=
 
 
@@ -40,28 +52,20 @@ Here are notes:
 
 ```{literalinclude} vignette_space.slim
 ```
-
+```{code-cell}
+%%bash
+slim -s 23 vignette_space.slim
+```
 
 Ok, now let's have a quick look at the output:
 
 ```{code-cell}
-
-import pyslim, tskit
-import numpy as np
-
 slim_ts = pyslim.load("spatial_sim.trees")
-print(f"The tree sequence has {slim_ts.num_trees} trees on a genome of length {slim_ts.sequence_length},"
-     f" {slim_ts.num_individuals} individuals, {slim_ts.num_samples} 'sample' genomes,"
-     f" and {slim_ts.num_mutations} mutations.")
+print(f"The tree sequence has {slim_ts.num_trees} trees")
+print(f"on a genome of length {slim_ts.sequence_length},")
+print(f"{slim_ts.num_individuals} individuals, {slim_ts.num_samples} 'sample' genomes,")
+print(f"and {slim_ts.num_mutations} mutations.")
 ```
-
-Running this code, we get
-
-```
-   The tree sequence has 37095 trees on a genome of length 100000000.0,
-   2712 individuals, 5424 'sample' genomes, and 0 mutations.
-```
-
 
 It makes sense we have no mutations: we haven't added any yet.
 The tree sequence is recording the relationship between 5,424 genomes (the "samples"),
@@ -72,37 +76,9 @@ Let's have a look at how old those individuals are,
 by tabulating when they were born:
 
 ```{code-cell}
-
 for t in np.unique(slim_ts.individual_times):
     print(f"There are {np.sum(slim_ts.individual_times == t)} individuals from time {t}.")
 ```
-
-This gets us
-
-```
-    There are 687 individuals from time 0.0.
-    There are 343 individuals from time 1.0.
-    There are 167 individuals from time 2.0.
-    There are 94 individuals from time 3.0.
-    There are 44 individuals from time 4.0.
-    There are 27 individuals from time 5.0.
-    There are 9 individuals from time 6.0.
-    There are 4 individuals from time 7.0.
-    There are 1 individuals from time 8.0.
-    There are 2 individuals from time 9.0.
-    There are 668 individuals from time 1000.0.
-    There are 334 individuals from time 1001.0.
-    There are 165 individuals from time 1002.0.
-    There are 84 individuals from time 1003.0.
-    There are 51 individuals from time 1004.0.
-    There are 10 individuals from time 1005.0.
-    There are 11 individuals from time 1006.0.
-    There are 6 individuals from time 1007.0.
-    There are 2 individuals from time 1008.0.
-    There are 1 individuals from time 1009.0.
-    There are 2 individuals from time 1010.0.
-```
-
 
 These "times" record the birth times of each individual.
 These are *tskit* times, which are in units of "time ago",
@@ -122,14 +98,6 @@ for t in [0, 1000]:
   print(f"There were {len(alive)} individuals alive {t} time steps in the past.")
 ```
 
-
-This tells us that
-
-```
-    There were 1378 individuals alive 0 time steps in the past.
-    There were 1334 individuals alive 1000 time steps in the past.
-```
-
 And, 1378 + 1334 is 2712, the total number of individuals.
 So, this all checks out.
 
@@ -137,7 +105,7 @@ So, this all checks out.
 ## Recapitation and mutation
 
 Next, we want to (a) simulate some ancestral diversity and (b) add in neutral mutations.
-Please see `Haller et al (2019) <https://onlinelibrary.wiley.com/doi/abs/10.1111/1755-0998.12968>`_
+Please see {ref}`Haller et al (2019) <https://onlinelibrary.wiley.com/doi/abs/10.1111/1755-0998.12968>`
 for the why and how of these steps.
 But, first let's see if recapitation is necessary:
 on how much of the genome is the tree sequence not coalesced?
@@ -146,10 +114,8 @@ will it make a difference?
 In fact, *no* segments of the genome have coalesced:
 
 ```{code-cell}
-sum([t.num_roots == 1 for t in slim_ts.trees()])
-# 0
-sum([t.num_roots > 0 for t in slim_ts.trees()])
-# 37095
+print(f"Number of trees with only one root: {sum([t.num_roots == 1 for t in slim_ts.trees()])}")
+print(f"Number with more than one root: {sum([t.num_roots > 0 for t in slim_ts.trees()])}")
 ```
 
 Next, we will:
@@ -170,36 +136,36 @@ we would need to pass ``keep_input_roots=True`` to allow recapitation.
 :::
 
 ```{code-cell}
-
-import msprime
-
 recap_ts = slim_ts.recapitate(recombination_rate=1e-8, Ne=1000)
 ts = pyslim.SlimTreeSequence(
-     msprime.mutate(recap_ts, rate=1e-8, keep=True))
+       msprime.sim_mutations(
+         recap_ts,
+         rate=1e-8,
+         model=msprime.SLiMMutationModel(type=0),
+         keep=True,
+         add_ancestral=True
+       )
+     )
 ts.dump("spatial_sim.recap.trees")
 
-print(f"The tree sequence now has {ts.num_trees} trees,"
-     f" and {ts.num_mutations} mutations.")
+print(f"The tree sequence now has {ts.num_trees} trees,")
+print(f" and {ts.num_mutations} mutations.")
 ```
+See {ref}`sec_tutorial_adding_neutral_mutations` for discussion of the options to
+{func}`msprime.sim_mutations`.
 
-
-This has added mutations according to an infinite-sites model of mutation,
-resulting in
-
-```
-The tree sequence now has 45160 trees, and 93280 mutations.
-```
 
 :::{note}
-   Since {meth}`mutate <msprime.mutate>` is an msprime method, it does not return a pyslim
-   tree sequence, so we need to convert it back, by wrapping the call to `mutate`
-   in {func}`.SlimTreeSequence`.
+   Since {func}`sim_mutations <msprime.sim_mutations>` is an msprime method,
+   it does not return a pyslim
+   tree sequence, so we need to convert it back, by wrapping the call
+   in {class}`.SlimTreeSequence`.
 :::
 
 We will have no further use for ``slim_ts`` or for ``recap_ts``;
-we've just given them separate names for tidiness.
+we've just given them separate names for tidyness.
 And, since the original SLiM mutation had no mutations, we didn't need to specify ``keep=True``
-in {meth}`mutate <msprime.mutate>`, but if we *had* put down selected mutations with SLiM
+in {func}`sim_mutations <msprime.sim_mutations>`, but if we *had* put down selected mutations with SLiM
 we'd probably want to keep them around.
 
 
@@ -241,16 +207,6 @@ for k in groups:
   print(f"We have {len(groups[k])} individuals in the {k} group.")
 ```
 
-
-```
-We have 36 individuals in the topleft group.
-We have 34 individuals in the topright group.
-We have 30 individuals in the bottomleft group.
-We have 29 individuals in the bottomright group.
-We have 24 individuals in the center group.
-We have 5 individuals in the ancient group.
-```
-
 To keep names associated with each subset of individuals,
 we've kept the individuals in a dict, so that for instance
 ``groups["topleft"]`` is an array of all the individual IDs that are in the top left corner.
@@ -263,8 +219,7 @@ for i in groups["ancient"]:
   ind = ts.individual(i)
   assert(ind.time >= 1000 and ind.time < 1020)
 ```
-
-That checks out.
+No errors occurred, so that checks out.
 
 ## Plotting locations
 
@@ -280,7 +235,8 @@ we can pull out the locations of the "topleft" individuals
 by indexing the rows of the individual location array:
 
 ```{code-cell}
-ts.individual_locations
+print("Locations:")
+print(ts.individual_locations)
 # array([[12.95327106, 10.6956274 ,  0.        ],
 #        [10.45240784, 34.81249943,  0.        ],
 #        [26.2278031 , 23.20632444,  0.        ],
@@ -288,8 +244,10 @@ ts.individual_locations
 #        [30.21201837, 20.9920904 ,  0.        ],
 #        [ 1.38658573, 17.6933384 ,  0.        ],
 #        [ 5.42651858, 12.30457856,  0.        ]])
+print("shape:")
 ts.individual_locations.shape
 # (2712, 3)
+print("topleft locations shape:")
 ts.individual_locations[groups["topleft"], :].shape
 # (9, 3)
 ```
@@ -330,7 +288,7 @@ name: spatial_sim_locations
 width: 1200px
 alt: Spatial location of all individuals and the genotyped ones.
 ---
-TODO CAPTION
+Spatial location of all individuals and the genotyped ones.
 ```
 
 
@@ -348,27 +306,15 @@ are designed to work with *genomes*, also known as "nodes".
 So, first we need to pull out the *node IDs* corresponding to the individuals we want.
 The things that make up a tree sequence - individuals, nodes, mutations, etcetera -
 can generally be examined individually. 
-For instance, here's what we have for the five "ancient" individuals:
+For instance, here's what we have for the the first "ancient" individual:
 
 ```{code-cell}
-for i in groups['ancient']:
-   print(ts.individual(i))
-
-# {'id': 1427, 'flags': 131072, 'location': array([24.6693165,  0.4198795,  0.       ]),
-# 'nodes': array([98, 99], dtype=int32), 'population': 1, 'time': 1004.0,
-# 'metadata': {'pedigree_id': 1299347, 'age': 4, 'subpopulation': 1, 'sex': -1, 'flags': 0}}
-# {'id': 1837, 'flags': 131072, 'location': array([21.3849923 , 12.74527713,  0.        ]),
-# 'nodes': array([918, 919], dtype=int32), 'population': 1, 'time': 1001.0,
-# 'metadata': {'pedigree_id': 1303415, 'age': 1, 'subpopulation': 1, 'sex': -1, 'flags': 0}}
-# {'id': 2594, 'flags': 131072, 'location': array([13.17510948, 27.74727477,  0.        ]),
-# 'nodes': array([2432, 2433], dtype=int32), 'population': 1, 'time': 1000.0,
-# 'metadata': {'pedigree_id': 1305382, 'age': 0, 'subpopulation': 1, 'sex': -1, 'flags': 0}}
-# {'id': 2414, 'flags': 131072, 'location': array([17.50087554, 19.63608325,  0.        ]),
-# 'nodes': array([2072, 2073], dtype=int32), 'population': 1, 'time': 1000.0,
-# 'metadata': {'pedigree_id': 1305045, 'age': 0, 'subpopulation': 1, 'sex': -1, 'flags': 0}}
-# {'id': 1911, 'flags': 131072, 'location': array([9.6343188 , 6.82903893, 0.        ]),
-# 'nodes': array([1066, 1067], dtype=int32), 'population': 1, 'time': 1001.0,
-# 'metadata': {'pedigree_id': 1303711, 'age': 1, 'subpopulation': 1, 'sex': -1, 'flags': 0}}
+:tags: ["remove-output"]
+print(ts.individual(groups['ancient'][0]))
+```
+```{code-cell}
+:tags: ["remove-input"]
+util.pp(ts.individual(groups['ancient'][0]))
 ```
 
 Notice that among other things, each individual carries around a list of their node IDs,
@@ -388,16 +334,12 @@ for j, k in enumerate(group_order):
 
 Let's do a consistency check: the number of nodes in each element of this list
 should be twice the number of individuals in the corresponding list.
-
 ```{code-cell}
-[len(groups[k]) for k in groups]
-# [9, 12, 13, 10, 6, 5]
-
-[len(u) for u in sampled_nodes]
-#   [18, 24, 26, 20, 12, 10]
+print([len(groups[k]) for k in groups])
+print([len(u) for u in sampled_nodes])
 ```
-   
-So, in the 'topleft' corner there are 12 diploids. That checks out.   
+For instance,, in the 'topleft' corner there are 12 diploids,
+with 24 nodes. That checks out.
 
 Now, we can compute the matrix of pairwise mean sequence divergences
 between and within these sets.
@@ -411,16 +353,6 @@ group_div = ts.divergence(sampled_nodes, indexes=pairs).reshape((6, 6))
 print("\t" + "\t".join(group_order))
 for i, group in enumerate(group_order):
   print(f"{group_order[i]}:\t" + "\t".join(map(str, np.round(group_div[i], 7))))
-```
-
-
-```
-    topleft:     3.69e-05    5.58e-05    5.57e-05    6.03e-05    5.56e-05    5.9e-05
-    topright:    5.58e-05    3.86e-05    5.83e-05    5.83e-05    5.55e-05    6.06e-05
-    bottomleft:  5.57e-05    5.83e-05    4.5e-05     5.79e-05    5.63e-05    6.02e-05
-    bottomright: 6.03e-05    5.83e-05    5.79e-05    3.18e-05    5.6e-05     6.14e-05
-    center:      5.56e-05    5.55e-05    5.63e-05    5.6e-05     4.73e-05    6.09e-05
-    ancient:     5.9e-05     6.06e-05    6.02e-05    6.14e-05    6.09e-05    4.56e-05
 ```
 
 
@@ -453,7 +385,10 @@ We'll also need pairwise geographic distances:
 geog_dist = np.repeat(0.0, len(pairs))
 locs = ts.individual_locations
 for k, (i, j) in enumerate(pairs):
-  geog_dist[k] = np.sqrt(np.sum((locs[ind_ids[i], :] - locs[ind_ids[j], :])**2))
+  geog_dist[k] = np.sqrt(np.sum(
+                    (locs[ind_ids[i], :]
+                     - locs[ind_ids[j], :])**2
+                 ))
 ```
 
 Let's check that makes sense: distances of individuals from themselves should be zero.
@@ -489,7 +424,7 @@ name: spatial_sim_ibd
 width: 600px
 alt: Geographic and genetic distances in the simulation.
 ---
-TODO CAPTION
+Geographic and genetic distances in the simulation.
 ```
 
 
@@ -535,13 +470,11 @@ with open("spatial_sim_genotypes.vcf", "w") as vcffile:
 1. The distinction between "nodes" (i.e., genomes) and "individuals" can be confusing,
    as well as the idea of "samples".
    Please see the
-   `tskit documentation <https://tskit.readthedocs.io/en/latest/data-model.html>`_
+   {ref}`tskit documentation <tskit:sec_data_model>`
    for more explanation about these concepts.
 
 2. The general interface for computing statistics (explaining, for instance, the "indexes"
-   argument above) is described in
-   `the tskit documentation <https://tskit.readthedocs.io/en/latest/stats.html>`_
-   also.
+   argument above) is described in {ref}`tskit documentation <tskit:sec_stats>` also.
 
 
 ## What about simplification?

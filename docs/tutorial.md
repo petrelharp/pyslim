@@ -340,7 +340,7 @@ scale: 42%
 align: right
 name: pedigree_mutate
 ---
-CAPTION TODO
+The tree sequence, with mutations added.
 ```
 
 If you have recorded a tree sequence in SLiM, likely you have not included any neutral mutations,
