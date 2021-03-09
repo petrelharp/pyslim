@@ -749,7 +749,7 @@ ts = msprime.sim_ancestry(
             recombination_rate=1e-8,
             sequence_length=1e6,
             random_seed=5)
-ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1)
+ts = pyslim.annotate_defaults(ts, model_type="nonWF", slim_generation=1, annotate_mutations=False)
 assert ts.num_individuals == 200
 assert ts.num_samples == 400
 ```
@@ -758,6 +758,8 @@ this means that as soon as we load the tree sequence into SLiM,
 SLiM will set the current time counter to 1.
 (If we set ``slim_generation`` to 100, then any script blocks scheduled to happen before 100
 would not execute after loading the tree sequence.)
+Furthermore, since we have simulated SLiM mutations,
+we've set ``annotate_mutations`` to False (otherwise it would overwrite the metadata).
 
 We now have 200 diploids (so, 400 sampled nodes).
 Here's individual 199, which hsa SLiM metadata:

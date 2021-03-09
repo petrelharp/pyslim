@@ -115,12 +115,6 @@ but no genetic diversity; no mutations.
 First, we'll add SLiM metadata to all of these things,
 a procedure we call "annotating".
 
-:::{note}
-   We have to annotate before adding mutations, because 
-   the :func:`.annotate_defaults` method overwrites existing
-   metadata.
-:::
-
 ```{code-cell}
 ots = pyslim.annotate_defaults(ots, model_type="WF", slim_generation=1)
 ```
