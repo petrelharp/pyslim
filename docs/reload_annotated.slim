@@ -12,7 +12,7 @@ initialize()
     initializeRecombinationRate(1e-8);
 }
 
-1 early() { 
+1 late() { 
     sim.readFromPopulationFile("vignette_annotated.init.trees");
     sim.treeSeqRememberIndividuals(p0.individuals);
 }

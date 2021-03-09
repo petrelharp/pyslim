@@ -9,7 +9,7 @@
     - file: vignette_space
     - file: vignette_continuing
     - file: vignette_coalescent_diversity
-    #- file: metadata
+    - file: metadata
 
 - part: pyslim reference
   chapters:

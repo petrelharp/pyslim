@@ -84,7 +84,7 @@ underlying tables), which can then be modified and loaded into SLiM.
 :::
 
 
-=(sec_constants_and_flags)
+(sec_constants_and_flags)=
 
 ## Constants and flags
 

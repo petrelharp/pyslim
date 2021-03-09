@@ -138,9 +138,9 @@ class SlimTreeSequence(tskit.TreeSequence):
     - :attr:`.individual_times` - numpy array of how long ago each individual was born
     - :attr:`.individual_populations` - numpy array of individual's populations
 
-    All mutable properties of individuals (e.g., age) is as it was recorded during
-    the individual's last time step alive (or at the end of the simulation, if they
-    are still alive).
+    All mutable properties of individuals (e.g., age) are as they were last recorded
+    in the tree sequence: either the last time they were Remembered, or at the end
+    of the simulation, if they are still alive then.
 
     You can create a :class:`.SlimTreeSequence` using one of
 

@@ -120,8 +120,8 @@ all trees have only one root:
 ```{code-cell}
 orig_max_roots = max(t.num_roots for t in orig_ts.trees())
 recap_max_roots = max(t.num_roots for t in rts.trees())
-print(f"Maximum number of roots before recapitation: {orig_max_roots}")
-print(f"After recapitation: {recap_max_roots}")
+print(f"Maximum number of roots before recapitation: {orig_max_roots}\n"
+      f"After recapitation: {recap_max_roots}")
 ```
 
 The {meth}`.SlimTreeSequence.recapitate` method
@@ -130,8 +130,8 @@ and you need to set up demography explicitly - for instance, in the example abov
 we've simulated from an ancestral population of ``Ne=200`` diploids.
 If you have more than one population,
 you must set migration rates or else coalescence will never happen
-(see below for an example, and {meth}`.SlimTreeSequence.recapitate` for more).
-
+(see {ref}`sec_recapitate_with_migration` for an example,
+and {meth}`.SlimTreeSequence.recapitate` for more).
 
 
 #### Recapitation with a nonuniform recombination map
@@ -314,9 +314,9 @@ for i in keep_indivs:
 
 sts = rts.simplify(keep_nodes, keep_input_roots=True)
 
-print(f"Before, there were {rts.num_samples} sample nodes (and {rts.num_individuals} individuals)")
-print(f"in the tree sequence, and now there are {sts.num_samples} sample nodes ")
-print(f"(and {sts.num_individuals} individuals).")
+print(f"Before, there were {rts.num_samples} sample nodes (and {rts.num_individuals} individuals)\n"
+      f"in the tree sequence, and now there are {sts.num_samples} sample nodes\n"
+      f"(and {sts.num_individuals} individuals).")
 ```
 
 **Note** that you must pass simplify a list of *node IDs*, not individual IDs.
@@ -364,8 +364,8 @@ ts = pyslim.SlimTreeSequence(
            )
     )
 
-print(f"The tree sequence now has {ts.num_mutations} mutations,")
-print(f"and mean pairwise nucleotide diversity is {ts.diversity():0.3e}.")
+print(f"The tree sequence now has {ts.num_mutations} mutations,\n"
+      f"and mean pairwise nucleotide diversity is {ts.diversity():0.3e}.")
 ```
 
 
@@ -392,12 +392,15 @@ What's going on here? Let's step through the code.
     is not lost.
 
 
-## Obtaining and saving individuals
-
 
 (sec_extracting_individuals)=
 
-### Extracting particular SLiM individuals
+## Extracting particular SLiM individuals
+
+Another important thing to be able to do is to extract particular
+individuals from a simulation,
+for analysis or for outputting their genotypes, for instance.
+This section demonstrates some basic manipulations of individuals.
 
 To get another example with discrete subpopulations,
 let's run another SLiM simulation, similar to the above
@@ -446,7 +449,13 @@ Our SLiM script started numbering populations at 1, while tskit starts counting 
 so there is an empty "population 0" in a SLiM-produced tree sequence.
 :::
 
-Now, let's recapitate and mutate the tree sequence.
+
+(sec_recapitate_with_migration)=
+
+## Recapitation with more than one population
+
+Following on the last example,
+let's recapitate and mutate the tree sequence.
 Recapitation takes a bit more thought, because we have to specify a migration matrix
 (or else it will run forever, unable to coalesce).
 
@@ -485,11 +494,11 @@ for i in ts.individuals_alive_at(0):
 diversity = ts.diversity(pop_nodes[1:])
 divergence = ts.divergence(pop_nodes[1:])
 
-print(f"There are {ts.num_mutations} mutations across {ts.num_trees} distinct")
-print(f"genealogical trees describing relationships among {ts.num_samples}")
-print(f"sampled genomes, with a mean genetic diversity of {diversity[0]:0.3e}")
-print(f"and {diversity[1]:0.3e} within the two populations,")
-print(f"and a mean divergence of {divergence:0.3e} between them.")
+print(f"There are {ts.num_mutations} mutations across {ts.num_trees} distinct\n"
+      f"genealogical trees describing relationships among {ts.num_samples}\n"
+      f"sampled genomes, with a mean genetic diversity of {diversity[0]:0.3e}\n"
+      f"and {diversity[1]:0.3e} within the two populations,\n"
+      f"and a mean divergence of {divergence:0.3e} between them.")
 ```
 
 
@@ -586,9 +595,9 @@ sub_ts = ts.simplify(sample_nodes)
 The resulting tree sequence does indeed have fewer individuals and fewer trees:
 
 ```{code-cell}
-print(f"There are {sub_ts.num_mutations} mutations across {sub_ts.num_trees} distinct")
-print(f"genealogical trees describing relationships among {sub_ts.num_samples} sampled genomes,")
-print(f"with a mean overall genetic diversity of {sub_ts.diversity()}.")
+print(f"There are {sub_ts.num_mutations} mutations across {sub_ts.num_trees} distinct\n"
+      f"genealogical trees describing relationships among {sub_ts.num_samples} sampled genomes,\n"
+      f"with a mean overall genetic diversity of {sub_ts.diversity()}.")
 ```
 
 
@@ -790,17 +799,14 @@ ts = pyslim.SlimTreeSequence(
         )
      )
 ```
-Now the mutations have SLiM metadata:
+Now the mutations have SLiM metadata.
+For instance, here's the first mutation:
 ```{code-cell}
 :tags: ["remove-output"]
-print(f"Number of mutations: {ts.num_mutations}")
-print("First mutation:")
-print(ts.mutation(0))
+ts.mutation(0)
 ```
 ```{code-cell}
 :tags: ["remove-input"]
-print(f"Number of mutations: {ts.num_mutations}")
-print("First mutation:")
 util.pp(ts.mutation(0))
 ```
 
@@ -841,8 +847,8 @@ First, let's see how many mutations there are:
 
 ```{code-cell}
 ts = pyslim.load("selection.trees")
-print(f"Number of sites: {ts.num_sites}")
-print(f"Number of mutations: {ts.num_mutations}")
+print(f"Number of sites: {ts.num_sites}\n"
+      f"Number of mutations: {ts.num_mutations}")
 ```
 
 Note that there are more mutations than sites;
@@ -863,7 +869,7 @@ Here, `m.site` tells us the ID of the *site* on the genome that the mutation occ
 and we can pull up information about that with the `ts.site( )` method:
 ```{code-cell}
 :tags: ["remove-output"]
-print(ts.site(m.site))
+ts.site(m.site)
 ```
 ```{code-cell}
 :tags: ["remove-input"]
@@ -1015,7 +1021,7 @@ sel_coeffs = np.array([
 ])
 which_max = np.argmax(sel_coeffs)
 m = ts.mutation(which_max)
-print(ts.site(m.site))
+ts.site(m.site)
 ```
 ```{code-cell}
 :tags: ["remove-input"]
@@ -1028,8 +1034,8 @@ Let's find its frequency in the full population:
 
 ```{code-cell}
 full_freqs = allele_counts(ts)
-print(f"Allele is found in {full_freqs[m.site][0]} copies,")
-print(f"and has selection coefficient {m.metadata['mutation_list'][0]['selection_coeff']}.")
+print(f"Allele is found in {full_freqs[m.site][0]} copies,\n"
+      f"and has selection coefficient {m.metadata['mutation_list'][0]['selection_coeff']}.")
 ```
 
 The allele is at about 50% in the population, so it is probably on its way to fixation.

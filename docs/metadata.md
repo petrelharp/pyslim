@@ -13,13 +13,14 @@ kernelspec:
 
 ```{code-cell}
 :tags: [remove-cell]
+import pyslim, tskit, msprime
+from IPython.display import SVG
+import numpy as np
+import random
+random.seed(23)
 
-    import pyslim, tskit, msprime
-    from IPython.display import SVG
-    import numpy as np
-
-    ts = pyslim.load("example_sim.trees")
-    tables = ts.tables
+ts = pyslim.load("example_sim.trees")
+tables = ts.tables
 ```
 
 
@@ -181,27 +182,27 @@ since the stage defaults to "early()"!)
 ## Modifying SLiM metadata
 
 For more on working with metadata,
-see `tskit's metadata documentation <https://tskit.readthedocs.io/en/latest/metadata.html#sec-metadata>`_.
+see {ref}`tskit's metadata documentation <tskit:sec_metadata>`.
 
 
 ### Top-level metadata
 
-The entries of the top-level metadata dict are *read-only*: so,
-you might think that
-``tables.metadata["SLiM"]["model_type"] = "nonWF"`` would switch the model type,
+The entries of the top-level metadata dict are *read-only*.
+So, you might think that
+`tables.metadata["SLiM"]["model_type"] = "nonWF"`
+would switch the model type,
 but this in fact (silently) does nothing. To modify the top-level metadata,
 we must (a) work with tables (as tree sequences are immutable, and (b)
 extract the metadata dict, modify the dict, and copy it back in.
 Instead, you should do
-
 ```{code-cell}
 md = tables.metadata
 md["SLiM"]["model_type"] = "nonWF"
 tables.metadata = md
 ```
-
 Modifying the top-level metadata
 could be used to set spatial bounds on an annotated msprime simulation, for instance.
+(This is recorded in the population metadata.)
 
 
 ### Modifying SLiM metadata in tables
@@ -216,9 +217,6 @@ For instance, to set the ages of the individuals in the tree sequence to random 
 and write out the resulting tree sequence:
 
 ```{code-cell}
-import random
-random.seed(23)
-
 tables = ts.tables
 ind_md = [ind.metadata for ind in tables.individuals]
 for md in ind_md:
@@ -230,8 +228,8 @@ tables.individuals.packset_metadata(
 mod_ts = pyslim.load_tables(tables)
 
 # check that it worked:
-print("First ten ages:", [ts.individual(i).metadata["age"], for i in range(10)])
-for ind in ts.individuals:
+print("First ten ages:", [mod_ts.individual(i).metadata["age"] for i in range(10)])
+for ind in mod_ts.individuals():
     assert ind.metadata['age'] in [1, 2, 3, 4]
 
 # save out the tree sequence
@@ -244,7 +242,7 @@ mod_ts.dump("modified_ts.trees")
 
 SLiM records additional information in the metadata columns of Population, Individual, Node, and Mutation tables,
 in a binary format using the python ``struct`` module.
-See `tskit's metadata documentation <https://tskit.readthedocs.io/en/latest/metadata.html#sec-metadata>`_
+See {ref}`tskit's metadata documentation <tskit:sec_metadata>`
 for details on how this works.
 Nothing besides this binary information can be stored in the metadata of these tables if the tree sequence is to be used by SLiM,
 and so when ``pyslim`` annotates an existing tree sequence, anything in those columns is overwritten.
@@ -268,7 +266,7 @@ we'd have ``n.metadata`` as a ``NodeMetadata`` object,
 with attributes ``n.metadata.slim_id`` and ``n.metadata.is_null`` and ``n.metadata.genome_type``.
 However, with tskit 0.3,
 the capacity to deal with structured metadata
-was implemented in `tskit itself <https://tskit.readthedocs.io/en/latest/metadata.html#sec-metadata>`_,
+was implemented in {ref}`tskit itself <tskit:sec_metadata>`,
 and so pyslim shifted to using the tskit-native metadata tools.
 As a result, parsed metadata is provided as a dictionary instead of an object,
 so that now ``n.metadata`` would be a dict,

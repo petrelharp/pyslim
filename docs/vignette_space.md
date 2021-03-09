@@ -105,7 +105,7 @@ So, this all checks out.
 ## Recapitation and mutation
 
 Next, we want to (a) simulate some ancestral diversity and (b) add in neutral mutations.
-Please see {ref}`Haller et al (2019) <https://onlinelibrary.wiley.com/doi/abs/10.1111/1755-0998.12968>`
+Please see [Haller et al (2019)](https://onlinelibrary.wiley.com/doi/abs/10.1111/1755-0998.12968>)
 for the why and how of these steps.
 But, first let's see if recapitation is necessary:
 on how much of the genome is the tree sequence not coalesced?
