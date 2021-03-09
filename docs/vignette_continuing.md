@@ -11,6 +11,18 @@ kernelspec:
   name: python3
 ---
 
+```{code-cell}
+:tags: [remove-cell]
+
+import pyslim, tskit, msprime
+from IPython.display import SVG
+import numpy as np
+import util
+
+np.random.seed(1234)
+```
+
+
 (sec_vignette_continuing)=
 
 
@@ -38,28 +50,22 @@ It is perhaps not very realistic, but it's dramatic.
 
 ```{literalinclude} rapid_adaptation.slim
 ```
+```{code-cell}
+%%bash
+slim -s 5 rapid_adaptation.slim
+```
 
 We can see what happened in the GUI,
 but let's pull some more statistics out of the tree sequence:
-
-:
-
 ```{code-cell}
-import pyslim, tskit, msprime
-import numpy as np
-
 ts = pyslim.load("rapid_adaptation.trees")
 
 # allele frequencies
-p = ts.sample_count_stat([ts.samples()], lambda x: x/20000, 1, windows='sites', strict=False)
-print(f"There are {ts.num_sites} segregating sites, of which {np.sum(p > 0.25)} "
-     f"are at frequency above 25%, and {np.sum(p > 0.05)} are above 5%.")
-```
-
-This tells us that:
-
-```{code-cell}
-   # There are 60142 segregating sites, of which 95 are at frequency above 25%, and 695 are above 5%.
+p = ts.sample_count_stat(
+                [ts.samples()], lambda x: x/20000, 1, windows='sites',
+                span_normalise=False, polarised=True, strict=False)
+print(f"There are {ts.num_sites} segregating sites, of which {np.sum(p > 0.25)}")
+print(f"are at frequency above 25%, and {np.sum(p > 0.05)} are above 5%.")
 ```
 
 The selection was, indeed, strong.
@@ -73,45 +79,49 @@ so first we check that all the existing mutations are of a different type.
 
 ```{code-cell}
 rts = ts.recapitate(Ne=1000, recombination_rate=1e-8, random_seed=6)
-mut_types = set([md['mutation_type'] for mut in ts.mutations() for md in mut.metadata['mutation_list']])
+
+# check type m0 is not used:
+mut_types = set([md['mutation_type']
+                for mut in ts.mutations()
+                for md in mut.metadata['mutation_list']])
 print(f"Keeping {rts.num_mutations} existing mutations of type(s) {mut_types}.")
 assert 0 not in mut_types
+
+# add type m0 mutations
 rts = pyslim.SlimTreeSequence(
         msprime.sim_mutations(
             rts, rate=1e-8, random_seed=7, keep=True, add_ancestral=True,
             model=msprime.SLiMMutationModel(type=0))
         )
 
-p = rts.sample_count_stat([rts.samples()], lambda x: x/20000, 1, windows='sites', strict=False)
-print(f"After mutation, there are {rts.num_sites} segregating sites, of which {np.sum(p > 0.25)} "
-      f"are at frequency above 25%, and {np.sum(p > 0.05)} are above 5%.")
+p = rts.sample_count_stat(
+                [rts.samples()], lambda x: x/20000, 1, windows='sites',
+                span_normalise=False, polarised=True, strict=False)
+print(f"After mutation, there are {rts.num_sites} segregating sites, of which {np.sum(p > 0.25)}")
+print(f"are at frequency above 25%, and {np.sum(p > 0.05)} are above 5%.")
 ```
 
 Now, there are more segregating sites - neutral ones.
-
-REMOVE
-Keeping 66693 existing mutations of type(s) {1}.
-After mutation, there are 81031 segregating sites, of which 243 are at frequency above 25%, and 1311 are above 5%.
 
 
 ## Continuing the simulation
 
 To "continue" the simulation neutrally, we'll 
 
-a. simulate the desired period of time in msprime
-b. randomly match the initial ancestors in the msprime simulation
+1. simulate the desired period of time in msprime
+2. randomly match the initial ancestors in the msprime simulation
    with the final individuals of the SLim simulation, and
-c. merge the two together, using the {meth}`tskit.TreeSequence.union` method.
+3. merge the two together, using the {meth}`tskit.TreeSequence.union` method.
 
 
-*(a)* Simulating for a given period of time in msprime requires the ``end_time`` argument
+**(1)** Simulating for a given period of time in msprime requires the ``end_time`` argument
 (remembering that this is *time ago*);
 we'll do this to simulate an additional 1000 generations.
 
 This is almost what we need, but there is one more detail:
 if complete coalescence occurs on any region of the genome,
 msprime will stop simulating the history of that region.
-This is a problem, since we need all lineages to extend back to ``end_time``
+This is a problem, since we need all lineages to extend back to ``end_time``.
 To make sure all lineages trace back to ``end_time``,
 we'll add one "fake" sample from a separate population, that *can't* coalesce with the rest,
 then remove it before the next step, using the ``keep_input_roots=True`` argument to ``simplify()``.
@@ -139,9 +149,10 @@ for n in (20000, 20001):
    assert n in new_ts.samples()
    assert new_ts.node(n).population == 1
 new_tables.simplify(samples=np.arange(20000), keep_input_roots=True)
+print(f"Remaining number of populations: {new_tables.populations.num_rows}")
 ```
 
-*(b)* Now we'll pull out the IDs of the nodes from 1000 generations ago,
+**(2)** Now we'll pull out the IDs of the nodes from 1000 generations ago,
 shift the times in the SLiM tree sequence back 1000 generations,
 randomly assign each to a node at the end of the SLiM simulation,
 and merge them.
@@ -180,39 +191,43 @@ tables.union(new_tables, node_map,
 # get back the tree sequence
 full_ts = pyslim.SlimTreeSequence(tables.tree_sequence())
 
-p = full_ts.sample_count_stat([full_ts.samples()], lambda x: x/20000, 1,
-                             windows='sites', strict=False)
-print(f"There are {full_ts.num_sites} segregating sites, of which {np.sum(p > 0.25)} "
-     f"are at frequency above 25%, and {np.sum(p > 0.05)} are above 5%.")
+p = full_ts.sample_count_stat(
+                [full_ts.samples()], lambda x: x/20000, 1,
+                windows='sites', span_normalise=False,
+                polarised=True, strict=False)
+print(f"There are {full_ts.num_sites} segregating sites, of which {np.sum(p > 0.25)}")
+print(f"are at frequency above 25%, and {np.sum(p > 0.05)} are above 5%.")
 ```
 
+Well, allele frequencies have drifted.
 Don't worry, we'll explain what happened there in a minute.
-Now, things have drifted:
 
+Let's do a consistency check.
+First, here's the root of the first tree in the recapitated SLiM simulation:
 ```{code-cell}
-# There are 328814 segregating sites, of which 4312 are at frequency above 25%, and 20912 are above 5%.
-```
-
-Let's do a consistency check:
-
-```{code-cell}
+:tags: ["remove-output"]
 t = rts.first()
 assert(t.num_roots == 1)
 r = rts.node(t.root)
-# Root of the first tree in the recapitated SLiM simulation:
 print(r)
-# {'id': 79305, 'time': 5920.012447565916, 'population': 1, 'individual': -1,
-#  'flags': 0, 'metadata': None}
-
+```
+```{code-cell}
+:tags: ["remove-input"]
+util.pp(r)
+```
+Now, here's the root of the first tree *after* continuing
+for 1000 generations, which should be the same:
+```{code-cell}
+:tags: ["remove-output"]
 ft = full_ts.first()
 assert(ft.num_roots == 1)
 fr = full_ts.node(ft.root)
-# Root of the first tree after continuing for 1000 generations:
 print(fr)
-# {'id': 79305, 'time': 6920.012447565916, 'population': 1, 'individual': -1,
-#  'flags': 0, 'metadata': None}
 ```
-
+```{code-cell}
+:tags: ["remove-input"]
+util.pp(fr)
+```
 That matches up - the time of what should be the same node in the "continued" tree sequence
 is 1000 generations earlier.
 
