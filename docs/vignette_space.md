@@ -61,10 +61,10 @@ Ok, now let's have a quick look at the output:
 
 ```{code-cell}
 slim_ts = pyslim.load("spatial_sim.trees")
-print(f"The tree sequence has {slim_ts.num_trees} trees")
-print(f"on a genome of length {slim_ts.sequence_length},")
-print(f"{slim_ts.num_individuals} individuals, {slim_ts.num_samples} 'sample' genomes,")
-print(f"and {slim_ts.num_mutations} mutations.")
+print(f"The tree sequence has {slim_ts.num_trees} trees\n"
+      f"on a genome of length {slim_ts.sequence_length},\n"
+      f"{slim_ts.num_individuals} individuals, {slim_ts.num_samples} 'sample' genomes,\n"
+      f"and {slim_ts.num_mutations} mutations.")
 ```
 
 It makes sense we have no mutations: we haven't added any yet.
@@ -114,8 +114,8 @@ will it make a difference?
 In fact, *no* segments of the genome have coalesced:
 
 ```{code-cell}
-print(f"Number of trees with only one root: {sum([t.num_roots == 1 for t in slim_ts.trees()])}")
-print(f"Number with more than one root: {sum([t.num_roots > 0 for t in slim_ts.trees()])}")
+print(f"Number of trees with only one root: {sum([t.num_roots == 1 for t in slim_ts.trees()])}\n"
+      f"Number with more than one root: {sum([t.num_roots > 0 for t in slim_ts.trees()])}")
 ```
 
 Next, we will:
@@ -148,8 +148,8 @@ ts = pyslim.SlimTreeSequence(
      )
 ts.dump("spatial_sim.recap.trees")
 
-print(f"The tree sequence now has {ts.num_trees} trees,")
-print(f" and {ts.num_mutations} mutations.")
+print(f"The tree sequence now has {ts.num_trees} trees,\n"
+       " and {ts.num_mutations} mutations.")
 ```
 See {ref}`sec_tutorial_adding_neutral_mutations` for discussion of the options to
 {func}`msprime.sim_mutations`.
@@ -233,25 +233,14 @@ numpy array as ``ts.individual_locations``.
 Since ``groups["topleft"]`` is an array of individual IDs,
 we can pull out the locations of the "topleft" individuals
 by indexing the rows of the individual location array:
-
 ```{code-cell}
 print("Locations:")
 print(ts.individual_locations)
-# array([[12.95327106, 10.6956274 ,  0.        ],
-#        [10.45240784, 34.81249943,  0.        ],
-#        [26.2278031 , 23.20632444,  0.        ],
-#        ...,
-#        [30.21201837, 20.9920904 ,  0.        ],
-#        [ 1.38658573, 17.6933384 ,  0.        ],
-#        [ 5.42651858, 12.30457856,  0.        ]])
 print("shape:")
 ts.individual_locations.shape
-# (2712, 3)
 print("topleft locations shape:")
 ts.individual_locations[groups["topleft"], :].shape
-# (9, 3)
 ```
-
 
 Using this, we can easily plot the locations of all the individuals from today
 (on the left) and 1000 time steps ago (on the right).
@@ -259,9 +248,7 @@ We have to do a bit of mucking around to set the colors so that they reflect
 which group each individual is in.
 
 ```{code-cell}
-
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 group_order = ['topleft', 'topright', 'bottomleft', 'bottomright', 'center', 'ancient']
@@ -277,18 +264,7 @@ ax.set_title("today")
 ax.scatter(locs[:,0], locs[:,1], s=20, c=ind_colors[alive])
 ax = fig.add_subplot(122)
 ax.set_title("long ago")
-ax.scatter(old_locs[:, 0], old_locs[:, 1], s=20, c=ind_colors[old_ones])
-fig.savefig("spatial_sim_locations.png")
-```
-
-
-```{figure} _static/spatial_sim_locations.png
----
-name: spatial_sim_locations
-width: 1200px
-alt: Spatial location of all individuals and the genotyped ones.
----
-Spatial location of all individuals and the genotyped ones.
+ax.scatter(old_locs[:, 0], old_locs[:, 1], s=20, c=ind_colors[old_ones]);
 ```
 
 
@@ -338,7 +314,7 @@ should be twice the number of individuals in the corresponding list.
 print([len(groups[k]) for k in groups])
 print([len(u) for u in sampled_nodes])
 ```
-For instance,, in the 'topleft' corner there are 12 diploids,
+For instance, in the 'topleft' corner there are 12 diploids,
 with 24 nodes. That checks out.
 
 Now, we can compute the matrix of pairwise mean sequence divergences
@@ -413,18 +389,7 @@ ax = fig.add_subplot(111)
 ax.scatter(geog_dist, 1e3 * ind_div, s=20, alpha=0.5,
           c=pair_colors)
 ax.set_xlabel("geographic distance")
-ax.set_ylabel("genetic distance (diffs/Kb)")
-fig.savefig("spatial_sim_ibd.png")
-```
-
-
-```{figure} _static/spatial_sim_ibd.png
----
-name: spatial_sim_ibd
-width: 600px
-alt: Geographic and genetic distances in the simulation.
----
-Geographic and genetic distances in the simulation.
+ax.set_ylabel("genetic distance (diffs/Kb)");
 ```
 
 

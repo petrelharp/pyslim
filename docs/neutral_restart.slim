@@ -15,7 +15,7 @@ reproduction(p1) {
                      subpop.sampleIndividuals(1));
 }
 
-1 late() { 
+1 early() { 
    sim.readFromPopulationFile("initialize_nonWF.trees");
    catn("Loaded " + length(sim.subpopulations)
         + " populations from a file; now in generation " + sim.generation);

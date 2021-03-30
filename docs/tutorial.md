@@ -852,7 +852,7 @@ print(f"Number of sites: {ts.num_sites}\n"
 ```
 
 Note that there are more mutations than sites;
-that's because some sites (looks like 20 of them) have multiple mutations.
+that's because some sites (looks like 24 of them) have multiple mutations.
 The information about the mutation is put in the mutation's metadata.
 Here's the first mutation:
 
@@ -895,6 +895,7 @@ In this case,
 `m.metadata['mutation_list']` is a list of length one,
 so the mutation was not stacked on top of previous ones.
 
+Let's pull out a mutation that was stacked on top of another one:
 ```{code-cell}
 :tags: ["remove-output"]
 for m in ts.mutations():
@@ -1016,8 +1017,8 @@ Finally, let's pull out information on the allele with the largest selection coe
 ```{code-cell}
 :tags: ["remove-output"]
 sel_coeffs = np.array([
-    m.metadata["mutation_list"][0]["selection_coeff"]
-    for m in ts.mutations()
+        sum(md["selection_coeff"] for md in m.metadata["mutation_list"])
+        for m in ts.mutations()
 ])
 which_max = np.argmax(sel_coeffs)
 m = ts.mutation(which_max)
@@ -1034,11 +1035,11 @@ Let's find its frequency in the full population:
 
 ```{code-cell}
 full_freqs = allele_counts(ts)
-print(f"Allele is found in {full_freqs[m.site][0]} copies,\n"
-      f"and has selection coefficient {m.metadata['mutation_list'][0]['selection_coeff']}.")
+print(f"The allele is found in {full_freqs[m.site][0]} copies\n"
+      f"out of {ts.num_nodes} genomes.")
 ```
 
-The allele is at about 50% in the population, so it is probably on its way to fixation.
+The allele is above 50% in the population, so it is probably on its way to fixation.
 Using its SLiM ID (which is shown in its derived state, ``1616148``),
 we could reload the tree sequence into SLiM,
 restart the simulation, and use its ID to track its subsequent progression.
@@ -1061,10 +1062,10 @@ Also known as "gotchas".
 
 3. As described above, the Individual table contains entries for 
 
-   a. the currently alive individuals, 
-   b. any individuals that have been permanently remembered with
+   1. the currently alive individuals, 
+   2. any individuals that have been permanently remembered with
       ``treeSeqRememberIndividuals()``, and
-   c. any individuals that have been temporarily retained with
+   3. any individuals that have been temporarily retained with
       ``treeSeqRememberIndividuals(permanent=F)``. Importantly, the nodes in these
       individuals are *not* marked as sample nodes, so they can be lost during
       simplification. This means that a retained individual may only have one node (but
