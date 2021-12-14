@@ -41,6 +41,20 @@ class TestMetadataSchemas(tests.PyslimTestCase):
                 assert decoded is None
             else:
                 assert entry == decoded
+        schema = pyslim.slim_metadata_schemas["mutation"]
+        entry = pyslim.default_slim_metadata["mutation"]
+        entry['mutation_list'].append(
+            pyslim.default_slim_metadata["mutation_list_entry"]
+        )
+        encoded = schema.validate_and_encode_row(entry)
+        decoded = schema.decode_row(encoded)
+        assert entry == decoded
+        entry['mutation_list'].append(
+            pyslim.default_slim_metadata["mutation_list_entry"]
+        )
+        encoded = schema.validate_and_encode_row(entry)
+        decoded = schema.decode_row(encoded)
+        assert entry == decoded
 
     def test_slim_metadata_schema_equality(self, recipe):
         t = recipe["ts"].dump_tables()
@@ -144,7 +158,6 @@ class TestTreeSequenceMetadata(tests.PyslimTestCase):
     def test_user_metadata(self, recipe):
         ts = recipe["ts"]
         md = ts.metadata["SLiM"]
-        #print(md)
         assert "user_metadata" in md
         assert md['user_metadata'] == {
                 "hello" : ["world"],
@@ -242,7 +255,6 @@ class TestNucleotides(tests.PyslimTestCase):
         '''
         ts = recipe["ts"]
         for mut in ts.mutations():
-            # print(mut)
             for u in mut.metadata['mutation_list']:
                 assert u["nucleotide"] >= -1
                 assert u["nucleotide"] <= 3

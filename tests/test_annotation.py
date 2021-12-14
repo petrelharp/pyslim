@@ -285,7 +285,7 @@ class TestAnnotate(tests.PyslimTestCase):
             new_ts = pyslim.load_tables(tables)
             for j, x in enumerate(new_ts.mutations()):
                 md = x.metadata
-                assert md['mutation_list'][0]["selection_coeff"] == selcoefs[j]
+                assert np.isclose(md['mutation_list'][0]["selection_coeff"], selcoefs[j])
 
     def test_dont_annotate_mutations(self, helper_functions):
         # Test the option to not overwrite mutation annotations
@@ -382,4 +382,4 @@ class TestReload(tests.PyslimTestCase):
         assert out_ts.metadata['SLiM']['nucleotide_based'] is True
         assert in_ts.has_reference_sequence() == out_ts.has_reference_sequence()
         if in_ts.has_reference_sequence():
-            assert in_ts.reference_sequence.data == out_ts.reference_sequence.data
+            in_ts.reference_sequence.assert_equal(out_ts.reference_sequence)

@@ -303,6 +303,14 @@ def default_slim_metadata(name):
         out = {
             "mutation_list": []
         }
+    elif name == "mutation_list_entry":
+        out = {
+            "mutation_type": 0,
+            "selection_coeff": 0.0,
+            "subpopulation": tskit.NULL,
+            "slim_time": 0,
+            "nucleotide": -1,
+        }
     elif name == "node":
         out = {
             "slim_id": tskit.NULL,

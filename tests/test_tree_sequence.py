@@ -438,8 +438,6 @@ class TestHasIndividualParents(tests.PyslimTestCase):
         right_parents = np.sort(np.array(right_parents), axis=0)
         parents = np.sort(ts.individual_parents(), axis=0)
         assert np.array_equal(right_answer, has_parents)
-        #print("right:", right_parents)
-        #print("pyslim:", parents)
         assert np.array_equal(right_parents, parents)
 
     def get_first_gen(self, ts):

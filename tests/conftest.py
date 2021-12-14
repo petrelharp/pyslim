@@ -149,7 +149,7 @@ class HelperFunctions:
         ]
         seed = 6
         for n in [2, 10, 20]:
-            for mutrate in [0.0]:
+            for mutrate in [0.0, 0.01]:
                 for recrate in [0.0, 0.01]:
                     yield msprime.simulate(n, mutation_rate=mutrate,
                                            recombination_rate=recrate,

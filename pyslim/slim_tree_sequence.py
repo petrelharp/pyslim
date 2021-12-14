@@ -938,16 +938,15 @@ def _set_sites_mutations(tables):
     for SLiM to load in a tree sequence. This means adding to the metadata column
     of the Mutation table,  It will also
     - give SLiM IDs to each mutation
-    - round Site positions to integer values
-    - stack any mutations that end up at the same position as a result
     - replace ancestral states with ""
     This will replace any information already in the metadata or derived state
-    columns of the Mutation table.
+    columns of the Mutation table. We set slim_time in metadata so that
+    - slim_generation = floor(tskit time) + slim_time
     '''
     num_mutations = tables.mutations.num_rows
-    default_mut = default_slim_metadata("mutation")
+    default_mut = default_slim_metadata("mutation_list_entry")
     dsb, dso = tskit.pack_bytes([str(j).encode() for j in range(num_mutations)])
-    slim_time = tables.metadata["SLiM"]["generation"] - tables.mutations.time
+    slim_time = tables.metadata["SLiM"]["generation"] - np.floor(tables.mutations.time).astype("int")
     mms = tables.mutations.metadata_schema
     mutation_metadata = [
             mms.encode_row(
