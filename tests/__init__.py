@@ -77,6 +77,10 @@ class PyslimTestCase:
             if n.metadata is not None:
                 map2[n.metadata['slim_id']] = j
         assert set(map1.keys()) == set(map2.keys())
+        print(ts1)
+        print(map1)
+        print(ts2)
+        print(map2)
         sids = list(map1.keys())
         for sid in sids:
             n1 = ts1.node(map1[sid])
@@ -95,6 +99,12 @@ class PyslimTestCase:
             t2 = ts2.at(pos)
             for _ in range(10):
                 a, b = random.choices(sids, k=2)
+                print(a, b, map1[a], map1[b], map2[a], map2[b])
+                print(t1)
+                print('a', t1.time(map1[a]))
+                print('b', t1.time(map1[b]))
+                print('1', t1.tmrca(map1[a], map1[b]))
+                print('2', t2.tmrca(map2[a], map2[b]))
                 assert t1.tmrca(map1[a], map1[b]) == t2.tmrca(map2[a], map2[b])
 
     def assertTableCollectionsEqual(self, t1, t2,

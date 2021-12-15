@@ -276,8 +276,8 @@ slim_metadata_schemas = {k: tskit.MetadataSchema(_raw_slim_metadata_schemas[k])
 def default_slim_metadata(name):
     """
     Returns default metadata of type ``name``, where ``name`` is one of
-    "tree_sequence", "edge", "site", "mutation", "node", "individual", or
-    "population".
+    "tree_sequence", "edge", "site", "mutation", "mutation_list_entry",
+    "node", "individual", or "population".
 
     :param str name: The type of metadata requested.
     :rtype dict:
@@ -345,7 +345,8 @@ def default_slim_metadata(name):
     else:
         raise ValueError(
             "Unknown metadata request: name should be one of 'tree_sequence', "
-            "'edge', 'site', 'mutation', 'node', 'individual', or 'population'.")
+            "'edge', 'site', 'mutation', 'mutation_list_entry', 'node', "
+            "'individual', or 'population'.")
     return out
 
 

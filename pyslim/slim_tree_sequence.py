@@ -85,6 +85,12 @@ def annotate_defaults_tables(tables, model_type, slim_generation, reference_sequ
         default_ages = 0
     else:
         raise ValueError("Model type must be 'WF' or 'nonWF'")
+    if not np.allclose(tables.sites.position, np.floor(tables.sites.position)):
+        raise ValueError(
+                "Site positions in this tree sequence are not at integer values, "
+                "but must be for loading into SLiM: generate mutations with "
+                "sim_mutations(..., discrete_genome=True), not simulate()."
+        )
     top_metadata = default_slim_metadata('tree_sequence')['SLiM']
     top_metadata['model_type'] = model_type
     top_metadata['generation'] = slim_generation

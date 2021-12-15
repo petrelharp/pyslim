@@ -42,15 +42,15 @@ class TestMetadataSchemas(tests.PyslimTestCase):
             else:
                 assert entry == decoded
         schema = pyslim.slim_metadata_schemas["mutation"]
-        entry = pyslim.default_slim_metadata["mutation"]
+        entry = pyslim.default_slim_metadata("mutation")
         entry['mutation_list'].append(
-            pyslim.default_slim_metadata["mutation_list_entry"]
+            pyslim.default_slim_metadata("mutation_list_entry")
         )
         encoded = schema.validate_and_encode_row(entry)
         decoded = schema.decode_row(encoded)
         assert entry == decoded
         entry['mutation_list'].append(
-            pyslim.default_slim_metadata["mutation_list_entry"]
+            pyslim.default_slim_metadata("mutation_list_entry")
         )
         encoded = schema.validate_and_encode_row(entry)
         decoded = schema.decode_row(encoded)
