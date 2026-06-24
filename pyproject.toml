@@ -31,7 +31,7 @@ keywords = ["tree sequences", "tskit"]
 requires-python = ">=3.11"
 dependencies = [
     "msprime>=1.0.1",
-    "tskit",
+    "tskit>=1.0.3",
     "numpy",
 ]
 
@@ -56,6 +56,7 @@ test = [
     "tskit",
     "msprime",
     "pandas",
+    "frozendict",
 ]
 
 docs = [

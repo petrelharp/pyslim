@@ -10,14 +10,49 @@ initialize()
     initializeGenomicElementType("g1", m1, 1.0);
     initializeGenomicElement(g1, 0, 99);
     initializeRecombinationRate(1e-2);
+    defineGlobal("MD", Dictionary());
 }
 
 1 early() { 
     sim.addSubpop("p1", 10);
 }
 
+// MUTATION/GENOTYPE INFO
+1 first() { // mutation information
+	MD.setValue("mutations", Dictionary());
+}
+mutation() {
+	muts = MD.getValue("mutations");
+	nuc = mut.mutationType.nucleotideBased ? mut.nucleotide else "N";
+	m = Dictionary(
+		"chromosome_id", mut.chromosome.id,
+		"mutationType", mut.mutationType.id,
+		"nucleotide", nuc,
+		"position", mut.position,
+		"originTick", mut.originTick
+	);
+	muts.setValue(asString(mut.id), m);
+	return T;
+}
 10 late() {
-    sim.treeSeqOutput(TREES_FILE);
+	subs = Dictionary();
+	for (mut in sim.substitutions) {
+		nuc = mut.mutationType.nucleotideBased ? mut.nucleotide else "N";
+		m = Dictionary(
+			"chromosome_id", mut.chromosome.id,
+			"mutationType", mut.mutationType.id,
+			"nucleotide", nuc,
+			"position", mut.position,
+			"fixationTick", mut.fixationTick
+		);
+		subs.setValue(asString(mut.id), m);
+	}
+	MD.setValue("substitutions", subs);
+}
+
+// OUTPUT/FINISH
+10 late() {
+    sim.treeSeqOutput(TREES_FILE, metadata=MD);
     catn("Done.");
     sim.simulationFinished();
 }

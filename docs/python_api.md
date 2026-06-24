@@ -18,7 +18,7 @@ from IPython.display import SVG
 import numpy as np
 
 ts = tskit.load("example_sim.trees")
-tables = ts.tables
+tables = ts.dump_tables()
 ```
 
 ```{eval-rst}
@@ -38,6 +38,7 @@ Here is a quick reference to some of the methods:
 .. autosummary::
 
   recapitate
+  mutation_metadata
   annotate
   individuals_alive_at
   individual_ages
@@ -47,6 +48,9 @@ Here is a quick reference to some of the methods:
   has_vacant_samples
   node_is_vacant
   slim_time
+  next_slim_mutation_id
+  add_mutation_metadata
+  add_mutation_metadata_tables
   convert_alleles
   generate_nucleotides
   population_size
@@ -89,6 +93,11 @@ Here is a quick reference to some of the methods:
 .. autofunction::  set_slim_state
 ```
 
+```{eval-rst}
+.. autofunction::  add_mutation_metadata
+.. autofunction::  add_mutation_metadata_tables
+```
+
 ## Summarizing tree sequences
 
 Additionally, ``pyslim`` contains the following methods:
@@ -120,6 +129,10 @@ Additionally, ``pyslim`` contains the following methods:
 ## Utilities
 
 ```{eval-rst}
+.. autofunction::  mutation_metadata
+```
+
+```{eval-rst}
 .. autofunction::  slim_time
 ```
 
@@ -132,23 +145,22 @@ Additionally, ``pyslim`` contains the following methods:
 ```
 
 ```{eval-rst}
+.. autofunction::  nodes_vacant
+```
+
+```{eval-rst}
 .. autofunction::  node_is_vacant
+```
+
+```{eval-rst}
+.. autofunction::  is_current_version
 ```
 
 
 ## Metadata
 
-SLiM-specific metadata is made visible to the user by ``.metadata`` properties.
-For instance:
-```{code-cell}
-ts.individual(4).metadata
-```
-shows that the fifth individual in the tree sequence was given pedigree ID ``495999`` by SLiM,
-had parents with pedigree IDs ``493739`` and ``494784``,
-was age 10 at the time that they died (or the simulation ended),
-lived in subpopulation 1,
-was female (because ``sex`` matches ``pyslim.INDIVIDUAL_TYPE_FEMALE``, below),
-and has no additional metadata flags.
+SLiM-specific metadata is made visible to the user by ``.metadata`` properties,
+described in [](sec_metadata).
 
 
 ### Annotation

@@ -5,6 +5,6 @@ try:
 except Exception:
     pyslim_version = "unknown"
 
-slim_file_version = "0.9"
+slim_file_version = "1.0"
 # other file versions that require no modification
-compatible_slim_file_versions = ["0.9"]
+compatible_slim_file_versions = ["1.0"]

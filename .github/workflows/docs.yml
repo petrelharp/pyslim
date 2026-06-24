@@ -11,6 +11,7 @@ jobs:
   Docs:
     permissions:
       contents: read
-    uses: tskit-dev/.github/.github/workflows/docs.yml@v19
+    uses: tskit-dev/.github/.github/workflows/docs.yml@v21
     with:
       install-slim: true
+      install-slim-branch: "multitrait"
