@@ -20,7 +20,7 @@ import random
 random.seed(23)
 
 ts = tskit.load("example_sim.trees")
-tables = ts.tables
+tables = ts.dump_tables()
 ```
 
 ```{eval-rst}
@@ -37,7 +37,7 @@ tables = ts.tables
 ## Overview
 
 SLiM puts SLiM-specific information into the *metadata* for the tree sequence,
-as well as for each populations, individuals, nodes and mutations.
+as well as for each population, individual, node and mutation.
 Here is a quick reference to what information is available:
 see the SLiM manual for the more technical writeup.
 A good way to get a generic metadata example is with {func}`.default_slim_metadata`.
@@ -55,6 +55,22 @@ and `ts.metadata["SLiM"]` contains information about the simulation:
 - `spatial_dimensionality`: for instance, `""` or `"x"` or `"xy"` (etcetera)
 - `spatial_periodicity`: whether space wraps around in some directions (same format as dimensionality)
 - `stage`: the *stage* of the life cycle at which the file was written out (either `"first"`, `"early"`, or `"late"`)
+- `name`: the *name* of this species in SLiM
+- `this_chromosome`: contains, for the chromosome in SLiM recorded in this tree sequence
+    * `id`: SLiM's ID 
+    * `index`: the index of this chromosome in the list of chromosomes
+    * `symbol`: the user-assigned symbol
+    * `type`: specifies inheritance type, e.g., `"A"` for autosome
+- `chromosomes`: (optional) a list of all chromosomes in the simulation
+- `traits`: a list of information for each of the traits:
+    * `index`: the index of the trait in SLiM
+    * `name`: the name in SLiM for the trait
+    * `type`: additive, multiplicative, or logistic
+    * `baselineOffset`, `baselineAccumulation`: a value added to all traits, and whether the effect of substitutions
+      accumulate in that value
+    * `directFitnessEffect`: whether the trait has a direct effect on fitness
+    * `individualOffsetMean`, `individualOffsetSD`: parameters governing the individual-level offsets
+      (i.e., "environment" effects)
 
 **Populations:**
 Information about each SLiM-produced population is written to metatadata.
@@ -81,27 +97,89 @@ Each individual produced by SLiM contains the following metadata:
 - `subpopulation`: the subpopulation within SLiM the individual was in at the time the file was written out
 - `sex`: the sex of the individual (either {data}`.INDIVIDUAL_TYPE_FEMALE`, {data}`.INDIVIDUAL_TYPE_MALE`, or {data}`.INDIVIDUAL_TYPE_HERMAPHRODITE`)
 - `flags`: additional information; currently only recording whether the individual was a "migrant" or not (see the SLiM manual)
+- `tag`, `tagF`: the corresponding properties in SLiM: default values returned by pyslim
+  are the special values that SLiM uses to mean that the values are unset
+- `tagL0`, `tagL0_set`, etcetera: again, the corresponding properties in SLiM;
+  the purpose of `tagLX_set` is to record whether the tag has been set in the simulation
+- `per_trait`: a list of information about the trait values for this indivdual; these are in the same order
+  as the traits listed in top-level metadata;
+    * `phenotype`: the trait value
+    * `offset`: the individual's offset (i.e., the "environmental effect")
 
 **Nodes:**
 Each "node" produced by SLiM (i.e., "genome" within SLiM) has:
 
-- 'slim_id': the unique ID associated with the genome by SLiM
-- 'is_null': whether the genome is a "null" genome (in which case it isn't
+- `slim_id`: the unique ID associated with the genome by SLiM
+- `is_vacant`: records the genome is a "vacant" genome (in which case it isn't
   really there, so shouldn't have any mutations or relationships in the tree
-  sequence!)
-- 'genome_type': the 'type' of this genome (0 for autosome, 1 for X, 2 for Y)
+  sequence!) - see [](sec_overview_vacant_nodes) for more explanation
 
 **Mutations:**
-Each mutation's metadata is a dictionary with a single key, `"mutation_list"`,
-whose entry is a *list* of metadata dictionaries corresponding to the mutations that are "stacked",
-i.e., all present, in all genomes inheriting from this (tskit) mutation.
-So, `ts.mutation(12).metadata["mutation_list"]` is a list, each of whose entries contains:
+Prior to SLiM 6.0, mutation metadata was associated with the tskit mutation objects.
+Now, this is stored in top-level metadata, under ``ts.metadata["SLiM_mutation_list"]``.
+Each entry
 
+- `mutation_id`: the numeric ID of mutation in SLiM
 - `mutation_type`: the numeric ID of the `MutationType` within SLiM
-- `selection_coeff`: the selection coefficient
 - `subpopulation`: the numeric ID of the subpopulation the mutation occurred in
 - `slim_time`: the value of `community.tick` when the mutation occurred
 - `nucleotide`: either `-1` if there is no associated nucleotide, or the numeric code for the nucleotide (see {data}`.NUCLEOTIDES`)
+- `per_trait`: a list of information in the same order as the traits in top-level metadata, recording for each:
+    * `effect_size`: the effect on the trait of this mutation
+    * `dominance`: its dominance coefficient
+    * `hemizygous_dominance`: its hemizygous dominance coefficient (see the SLiM manual)
+- `padding`: this is simply empty bytes, here for byte-alignment reasons, and is always `None`
+
+
+(sec_metadata_using_top_level)=
+
+## Using top-level metadata
+
+If you are going to be using information from top-level metadata,
+it is good practice to extract the metadata as a separate python object once
+and refer to that object, since otherwise you can incur runtime penalties
+for decoding and copying the metadata every time you call `ts.metadata`.
+This can be substantial, given the amount of mutation information
+in top-level metadata.
+For instance, to subtract off baseline offsets from individual's trait values,
+we might do:
+```{code-cell}
+md = ts.metadata
+traits = md["SLiM"]["traits"]
+values = [
+    [x['phenotype'] - y["baselineOffset"] for x, y in zip(ind.metadata['per_trait'], traits)]
+    for ind in ts.individuals()
+]
+```
+If we instead inserted ``ts.metadata["SLiM"]["traits"]`` directly into the loop,
+this would become infeasibly slow.
+
+In some more detail:
+each time python evaluates ``ts.metadata`` (e.g., using ``ts.metadata["SLiM"]``)
+a new copy of the metadata dict is decoded and returned. Furthermore, a number
+of pyslim functions need to look up information from metadata under the hood.
+For instance, previously it was acceptable to run
+``[pyslim.slim_time(ts, mut.time) for mut in ts.mutations()]``.
+However, this could now easily take hours even for moderately-sized simulations.
+There are several recommendations for how to mitigate this:
+
+- If you use information from top-level metadata, make a copy of it
+  and refer to that copy instead: so, ``ts_metadata = ts.metadata``
+  after ``ts = tskit.load(...)`` and then use `ts_metadata`. However,
+  be careful that you use the correct metadata object!
+
+- Use a single pyslim function call rather than many. For instance, run:
+  ``slim_times = pyslim.slim_time(ts, ts.mutations_time)`` and extract
+  slim times from this vector. Similarly, use {func}`.nodes_vacant`
+  instead of {func}`.node_is_vacant`.
+
+- Some pyslim methods will accept a pre-extracted metadata dictionary
+  as an optional argument. If this is not provided, those methods will
+  extract the metadata again. The methods that now take a `ts_metadata` argument are:
+  {func}`.individual_ages`,
+  {func}`.individual_ages_at`,
+  {func}`.individuals_alive_at`, and
+  {func}`.slim_time`.
 
 
 (sec_metadata_tools)=
@@ -110,10 +188,20 @@ So, `ts.mutation(12).metadata["mutation_list"]` is a list, each of whose entries
 
 The dictionaries describing the schema for these metadata entries
 are available in `pyslim.slim_metadata_schemas`.
-Furthermore, this method may be useful in working with metadata:
+Furthermore, these method may be useful in working with metadata:
 
 ```{eval-rst}
 .. autofunction:: default_slim_metadata
+
+.. autofunction:: slim_tree_sequence_metadata_schema
+
+.. autofunction:: slim_individual_metadata_schema
+
+.. autofunction:: slim_node_metadata_schema
+
+.. autofunction:: set_tree_sequence_metadata
+
+.. autofunction:: set_metadata_schemas
 ```
 
 
@@ -125,11 +213,11 @@ see {ref}`tskit's metadata documentation <tskit:sec_metadata>`.
 ### Top-level metadata
 
 The entries of the top-level metadata dict are *read-only*.
-So, you might think that
+So, although you might think that
 `tables.metadata["SLiM"]["model_type"] = "nonWF"`
 would switch the model type,
-but this in fact (silently) does nothing. To modify the top-level metadata,
-we must (a) work with tables (as tree sequences are immutable, and (b)
+this in fact (silently) does nothing. To modify the top-level metadata,
+we must (a) work with tables (as tree sequences are immutable), and (b)
 extract the metadata dict, modify the dict, and copy it back in.
 Instead, you should do
 ```{code-cell}

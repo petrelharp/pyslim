@@ -1,0 +1,101 @@
+initialize() {
+   setSeed(23);
+   if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+   initializeSLiMOptions(keepPedigrees=T);
+   initializeTreeSeq(timeUnit="generations");
+	defineConstant("I1", 5.0);
+	defineConstant("I2", -5.0);
+	defineConstant("OPT1", 10.0);
+	defineConstant("OPT2", 10.0);
+	defineConstant("SD1", 2.0);
+	defineConstant("SD2", 2.0);
+	
+	initializeSex();
+	
+	popgen1T = initializeTrait("popgen1T", "m", 1.0, 0.0, 0.01, directFitnessEffect=T);
+	popgen2T = initializeTrait("popgen2T", "m", 1.0, 0.0, 0.01, directFitnessEffect=T);
+	n1T = initializeTrait("n1T", "m", directFitnessEffect=T);
+	n2T = initializeTrait("n2T", "m", directFitnessEffect=F);
+	
+	quant1T = initializeTrait("quant1T", "a", I1, 0.0, 0.01, directFitnessEffect=F);
+	quant2T = initializeTrait("quant2T", "a", I2, 0.0, 0.01, directFitnessEffect=F);
+	n3T = initializeTrait("n3T", "a", directFitnessEffect=F, baselineAccumulation=F);
+	
+
+	logistic1T = initializeTrait("logistic1T", "l", 0.0, 0.01, 0.01, directFitnessEffect=T);	
+	initializeMutationType("m1", 0.4, "f", 0.0);
+	initializeMutationType("m2", 0.4, "e", 0.05);
+	m2.setEffectSizeDistributionForTrait(c(n1T, n2T), "f", 0.0);
+	m2.setEffectSizeDistributionForTrait(c(quant1T, quant2T), "n", 0.0, 0.1);
+	m2.setEffectSizeDistributionForTrait(c(logistic1T), "n", -0.05, 0.1);
+	
+	initializeMutationType("m3", 0.4, "g", -0.05, 1.0);
+	m3.setEffectSizeDistributionForTrait(c(n1T, n2T), "f", 0.0);
+	m3.setEffectSizeDistributionForTrait(c(quant1T, quant2T), "n", 0.0, 0.1);
+	m3.setEffectSizeDistributionForTrait(c(logistic1T), "n", -0.05, 0.1);
+	
+	c(m2,m3).setEffectSizeDistributionForTrait(n3T, "n", -5.0, 0.5);
+	
+	c(m2,m3).setDefaultDominanceForTrait(c(popgen2T, quant2T), NAN);
+	
+	c(m2,m3).logMutationData(T, trait=NULL, effectSize=T, dominance=T);
+	
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElementType("g2", 1:3, c(3, 1, 2));
+	
+	ids = 1:5;
+	symbols = c(1, 2, "X", "Y", "MT");
+	lengths = rdunif(5, 1e7, 2e7);
+	types = c("A", "A", "X", "Y", "H");
+	names = c("A1", "A2", "X", "Y", "MT");
+	
+	for (id in ids, symbol in symbols, length in lengths, type in types, name in names)
+	{
+		initializeChromosome(id, length, type, symbol, name);
+		initializeMutationRate(1e-7);
+		initializeRecombinationRate(1e-8);
+		
+		if (id == 1)
+			initializeGenomicElement(g1); // autosome 1 is pure-neutral, using only m1
+		else
+			initializeGenomicElement(g2); // autosome 2 is a mix, using m1 / m2 / m3
+	}
+}
+
+mutation(m2) {
+	// set random dominance effects for the popgen1T and quant1T and logistic1TDominance traits
+	// other effects are generated as specified by the mutation type DES
+	mut.popgen1TDominance = runif(1);
+	mut.quant1TDominance = runif(1);
+	mut.logistic1TDominance = runif(1);
+	return T;
+}
+mutation(m3) {
+	// set random dominance effects for the popgen1T and quant1T and logistic1TDominance traits
+	// other effects are generated as specified by the mutation type DES
+	mut.popgen1TDominance = runif(1);
+	mut.quant1TDominance = runif(1);
+	mut.logistic1TDominance = runif(1);
+	return T;
+}
+
+1 late() {
+	sim.addSubpop("p1", 20);
+}
+
+1: late() {
+	inds = sim.subpopulations.individuals;
+   sim.demandPhenotype(NULL, c(sim.quant1T, sim.quant2T));
+	phenotypes_q1 = inds.quant1T;
+	phenotypes_q2 = inds.quant2T;
+	fitnessEffect_q1 = dnorm(phenotypes_q1, OPT1, SD1) / dnorm(0.0, 0.0, SD1);
+	fitnessEffect_q2 = dnorm(phenotypes_q2, OPT2, SD2) / dnorm(0.0, 0.0, SD2);
+	inds.fitnessScaling = fitnessEffect_q1 * fitnessEffect_q2;
+}
+
+
+10 late() {
+    sim.treeSeqOutput(TREES_FILE);
+    catn("Done.");
+    sim.simulationFinished();
+}

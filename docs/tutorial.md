@@ -315,8 +315,8 @@ can be done with the {meth}`tskit.TreeSequence.simplify` method:
 ```{code-cell}
 import numpy as np
 rng = np.random.default_rng(seed=3)
-alive_inds = pyslim.individuals_alive_at(rts, 0)
-keep_indivs = rng.choice(alive_inds, 100, replace=False)
+alive = pyslim.individuals_alive_at(rts, 0)
+keep_indivs = rng.choice(alive, 100, replace=False)
 keep_nodes = []
 for i in keep_indivs:
   keep_nodes.extend(rts.individual(i).nodes)
@@ -364,11 +364,13 @@ This works as follows:
 
 ```{code-cell}
 next_id = pyslim.next_slim_mutation_id(sts)
-ts = msprime.sim_mutations(
+ts = pyslim.add_mutation_metadata(
+        msprime.sim_mutations(
            sts,
            rate=1e-8,
            model=msprime.SLiMMutationModel(type=0, next_id=next_id),
            keep=True,
+        )
 )
 
 print(f"The tree sequence now has {ts.num_mutations} mutations,\n"
@@ -517,8 +519,8 @@ For this reason, if at this point we try to extract genotypes for all of the
 alive individuals, we encounter a (somewhat confusing) error:
 
 ```{code-cell}
+alive = pyslim.individuals_alive_at(ts, 0)
 try:
-    alive = pyslim.individuals_alive_at(ts, 0)
     with open("example_snps.vcf", "w") as vcffile:
         ts.write_vcf(vcffile, individuals=alive)
 except Exception as e:
@@ -537,7 +539,7 @@ using {meth}`is_sample() <tskit.Node.is_sample>`:
 
 ```{code-cell}
 indivlist = []
-for i in pyslim.individuals_alive_at(ts, 0):
+for i in alive:
     ind = ts.individual(i)
     if ts.node(ind.nodes[0]).is_sample():
        indivlist.append(i)
@@ -652,7 +654,7 @@ print(f"There are {ts.num_mutations} mutations across {ts.num_trees} distinct\n"
 
 ## Individual metadata
 
-Each ``Mutation``, ``Population``, ``Node``, and ``Individual``, as well as the tree
+Each ``Population``, ``Node``, and ``Individual``, as well as the tree
 sequence as a whole, carries additional information stored by SLiM in its ``metadata``
 property. A fuller description of metadata in general is given in [](sec_metadata),
 but as a quick introduction, here is the information available
@@ -687,7 +689,12 @@ produced by SLiM. This is described in more detail in the SLiM manual, but brief
 - ``flags`` holds additional information about the individual recorded by SLiM
   (currently, only whether the individual has migrated or not:
   see [](sec_constants_and_flags)).
-
+- the ``tag`` entries contain the correspondly-named "tags" in SLiM,
+  and for the logical tags ``tagLX``, the ``tagLX_set`` records whether or not
+  that tag was "set" (as opposed to remaining unset).
+  The funny values in ``tag`` and ``tagF`` are those special values that SLiM uses to
+  record that *those* entries were not set either.
+- the ``per_trait`` entry is a list of information, one for each trait in the simulation.
 
 We can use this metadata in many ways, for example, to create an age distribution by sex:
 
@@ -697,7 +704,8 @@ max_age = max([ind.metadata["age"] for ind in ts.individuals()])
 age_table = np.zeros((max_age + 1, 2))
 age_labels = { pyslim.INDIVIDUAL_TYPE_FEMALE: 'females',
                pyslim.INDIVIDUAL_TYPE_MALE: 'males' }
-for i in pyslim.individuals_alive_at(ts, 0):
+alive = pyslim.individuals_alive_at(ts, 0)
+for i in alive:
     ind = ts.individual(i)
     age_table[ind.metadata["age"], ind.metadata["sex"]] += 1
 
@@ -728,8 +736,8 @@ This can be done using the numpy arrays returned by {func}`.individual_ages`
 and `.individuals_population` as follows:
 
 ```{code-cell}
-alive = pyslim.individuals_alive_at(ts, 0)
-adults = alive[pyslim.individual_ages(ts)[alive] > 2]
+ages = pyslim.individual_ages(ts)
+adults = alive[ages[alive] > 2]
 pops = [
    [i for i in adults if ts.individual(i).metadata['subpopulation'] == k]
    for k in [1, 2]
@@ -979,22 +987,40 @@ stored in the mutation metadata.
 To modify the mutations to be under selection,
 see [](sec_vignette_coalescent_diversity).
 ```{code-cell}
-ts = msprime.sim_mutations(
+ts = pyslim.add_mutation_metadata(
+        msprime.sim_mutations(
                 ts, rate=1e-8,
                 model=msprime.SLiMMutationModel(type=0),
                 random_seed=9
+        )
 )
 ```
-Now the mutations have SLiM metadata.
-For instance, here's the first mutation:
+The resulting mutations are in SLiM format.
+Now, each `mutation` object in the tree sequence represents
+some number of SLiM mutations, whose SLiM IDs are stored in the `derived_state`.
+For instance, here's which SLiM mutation(s) the first mutation
+in the tree sequence represents:
+```{code-cell}
+ds = ts.mutation(0).derived_state
+print(f"SLiM IDs: {ds}")
+```
+To see the information about these, we pull their information out
+using {func}`.mutation_metadata`, which provides a dictionary
+indexed by the SLiM IDs:
 ```{code-cell}
 :tags: ["remove-output"]
-ts.mutation(0)
+mut_metadata = pyslim.mutation_metadata(ts)
+for sid in ds.split(","):
+    print(mut_metadata[int(sid)])
 ```
 ```{code-cell}
 :tags: ["remove-input"]
-util.pp(ts.mutation(0))
+for sid in ds.split(","):
+    util.pp(mut_metadata[int(sid)])
 ```
+**Important:** the {func}`.mutation_metadata`-returned dictionary
+is indexed by **ints**, not strings, so be sure to convert your
+SLiM IDs to ints before looking them up!
 
 Finally, we write this out to a file that can be loaded in to SLiM:
 ```{code-cell}
@@ -1053,24 +1079,31 @@ Now, mutations have a ``nucleotide`` property in metadata that is not ``-1``:
 
 ```{code-cell}
 :tags: ["remove-output"]
+mut_metadata = pyslim.mutation_metadata(ts)
 m = ts.mutation(0)
+md = [mut_metadata[int(k)] for k in m.derived_state.split(",")]
 print(m)
+for x in md:
+    print(x)
 ```
 
 ```{code-cell}
 :tags: ["remove-input"]
 util.pp(m)
+for x in md:
+    util.pp(x)
 ```
 
 We can see which nucleotide is the derived state produced by each mutation
- by indexing the {data}`.NUCLEOTIDES` object:
+by indexing the {data}`.NUCLEOTIDES` object:
 
 ```{code-cell}
 for k in range(3):
     m = ts.mutation(k)
     print(f"Mutation {k}: position {ts.site(m.site).position}, time {m.time}")
-    for ml in m.metadata['mutation_list']:
-        print(f"  nucleotide: {pyslim.NUCLEOTIDES[ml['nucleotide']]}")
+    for sid in m.derived_state.split(","):
+        md = mut_metadata[int(sid)]
+        print(f"  nucleotide: {pyslim.NUCLEOTIDES[md['nucleotide']]}")
 ```
 
 Here's a script minimally modified from the above to be nucleotide-based:
@@ -1108,73 +1141,108 @@ print(f"Number of sites: {ts.num_sites}\n"
 ```
 
 Note that there are more mutations than sites;
-that's because some sites (looks like 24 of them) have multiple mutations.
+that's because some sites have multiple mutations.
 The information about the mutation is put in the mutation's metadata.
 Here's the first mutation:
 
 ```{code-cell}
 :tags: ["remove-output"]
+mut_metadata = pyslim.mutation_metadata(ts)
 m = ts.mutation(0)
+md = [mut_metadata[int(k)] for k in m.derived_state.split(",")]
 print(m)
+for x in md:
+    print(x)
 ```
+
 ```{code-cell}
 :tags: ["remove-input"]
 util.pp(m)
+for x in md:
+    util.pp(x)
 ```
-Here, `m.site` tells us the ID of the *site* on the genome that the mutation occurred at,
+
+Since we haven't explicitly defined any traits in this simulation,
+the only trait is fitness, and the `effect_size` listed under `per_trait`
+for this mutation is simply its selection coefficient.
+Furthermore, `m.site` tells us the ID of the *site* on the genome that the mutation occurred at,
 and we can pull up information about that with the `ts.site( )` method:
+
 ```{code-cell}
 :tags: ["remove-output"]
-ts.site(m.site)
+s = ts.site(m.site)
+md = [
+    mut_metadata[int(k)] for m in s.mutations
+                         for k in m.derived_state.split(",")
+]
+print(s)
+for x in md:
+    print(x)
 ```
+
 ```{code-cell}
 :tags: ["remove-input"]
-util.pp(ts.site(m.site))
+util.pp(s)
+for x in md:
+    util.pp(x)
 ```
+
 This mutation occurred at position 54 along the genome (from `site.position`)
 which previously had no mutations (since `site.ancestral_state` is the empty string, `''`)
-and was given SLiM mutation ID 1653896 (`m.derived_state`).
-The metadata (`m.metadata`, a dict) tells us that
-the mutation has selection coefficient 1.5597 and occurred in population 1 in generation 827,
-which was 172 generations ago.
+and was given SLiM mutation ID 1997358 (`m.derived_state`).
+The metadata (`mut_metadata[1997358]`, a dict) tells us that
+the mutation has selection coefficient -0.1129 and occurred in population 1 in generation 999,
+which was 0 generations ago.
 This is not a nucleotide model, so the nucleotide entry is `-1`.
-Note that `m.time` and `m.metadata['mutation_list'][0]['slim_time']` are in this case redundant:
+Note that `m.time` and the `slim_time` entry in metadata are in this case redundant:
 they contain the same information, but the first is in tskit time
 (i.e., number of steps before the tree sequence was written out)
 and the second is using SLiM's internal "tick" counter.
 
-Also note that the mutation's metadata is a *list* of metadata entries.
+Also note that each mutation may have associated a *list* of SLiM mutations,
+each with their own metadata.
 That's because of SLiM's mutation stacking feature.
 We know that some sites have more than one mutation,
 so to get an example let's pull out one such mutation.
-In this case,
-`m.metadata['mutation_list']` is a list of length one,
-so the mutation was not stacked on top of previous ones.
 
 Let's pull out a mutation that was stacked on top of another one:
+
 ```{code-cell}
 :tags: ["remove-output"]
 for m in ts.mutations():
   if m.parent != tskit.NULL:
      break
 
+pm = ts.mutation(m.parent)
+md = [mut_metadata[int(k)] for k in m.derived_state.split(",")]
+pmd = [mut_metadata[int(k)] for k in pm.derived_state.split(",")]
+
 print(m)
-print(ts.mutation(m.parent))
+for x in md:
+    print(x)
+print(pm)
+for x in pmd:
+    print(x)
 ```
+
 ```{code-cell}
 :tags: ["remove-input"]
 util.pp(m)
+for x in md:
+    util.pp(x)
 util.pp(ts.mutation(m.parent))
+for x in pmd:
+    util.pp(x)
 ```
 
-This mutation (which is `ts.mutation(1020)` in the tree sequence)
-was the result of SLiM adding a new mutation of type `m1` and selection coefficient -0.0032
-on top of an existing mutation, also of type `m1` and with selection coefficient 0.3086.
-This happened at generation 999 (i.e., at tskit time 0.0 time units ago),
-and the older mutation occurred at generation 274 (at tskit time 725 time units ago).
-The older mutation has SLiM mutation ID 547531,
-and the newer mutation had SLiM mutation ID 1998096,
-so the resulting "derived state" is `'1998096,547531'`.
+This mutation (which is `ts.mutation(330)` in the tree sequence)
+was the result of SLiM adding a new mutation of type `m1` and selection coefficient -0.1547
+on top of an existing mutation, of type `m2` and with (whopping) selection coefficient 1.737.
+This happened at generation 998 (i.e., at tskit time 1.0 time units ago),
+and the older mutation occurred at generation 83 (at tskit time 916 time units ago).
+The older mutation has SLiM mutation ID 1994163,
+and the newer mutation had SLiM mutation ID 164833,
+so the resulting "derived state" is `'1994163,164833'`.
 
 Now that we understand how SLiM mutations are stored in a tree sequence,
 let's look at the allele frequencies.
@@ -1189,12 +1257,12 @@ print(afs.astype('int'))
 ```
 
 (The `span_normalise=False` argument gives us counts rather than a density per unit length.)
-This shows us that there are 4169 alleles that are found among the tree sequence's samples
-that are not present in any of our 10 samples, 96 that are present in just one, etcetera.
+This shows us that there are 3929 alleles that are found among the tree sequence's samples
+that are not present in any of our 10 samples, 585 that are present in just one, etcetera.
 The surprisingly large number that are near 50% frequency are perhaps positively selected
 and on their way to fixation: we can check if that's true next.
-You may have noticed that the sum of the allele frequency spectrum is 5243,
-which is not obviously related to the number of mutations (6044) *or* the number of sites (6020).
+You may have noticed that the sum of the allele frequency spectrum is 5029,
+which is not obviously related to the number of mutations (5861) *or* the number of sites (5848).
 That's because each derived allele that is inherited by some but not all of the samples
 in the tree sequence is counted in the polarised allele frequency spectrum:
 Fixed mutations, or mutations that were entirely "overwritten" by subsequent mutations,
@@ -1206,8 +1274,10 @@ afs_total = 0
 for v in ts.variants():
     if len(set(v.genotypes)) > 1:
         afs_total += len(set(v.genotypes) - set([0]))
-print(afs_total)
+print(afs_total, sum(afs))
 ```
+
+These are equal, verifying our interpretation.
 
 At time of writing, we don't have a built-in ``allele_frequency`` method,
 so we'll use the following snippet:
@@ -1236,7 +1306,8 @@ mut_type = np.zeros(ts.num_sites)
 for j, s in enumerate(ts.sites()):
   mt = []
   for m in s.mutations:
-     for md in m.metadata["mutation_list"]:
+     for sid in m.derived_state.split(","):
+        md = mut_metadata[int(sid)]
         mt.append(md["mutation_type"])
   if len(set(mt)) > 1:
      mut_type[j] = 3
@@ -1261,32 +1332,34 @@ print(mut_afs)
 
 The first column gives the AFS among these 10 samples for the deleterious alleles,
 the second for the beneficial mutations;
-the third column for the seven sites that had both types of mutation.
+the third column for the few sites that had both types of mutation.
 Interestingly, there are similar numbers of both types of mutation at intermediate frequency:
 perhaps because beneficial mutations are sweeping linked deleterious alleles along with them.
-Many fewer benefical alleles are at low frequency:
-3,666 deleterious alleles are not found in our sample of 10 genomes,
-while only 486 beneficial alleles are.
+Many fewer benefical alleles are at low frequency, however.
 
 Finally, let's pull out information on the allele with the largest selection coefficient.
 
 ```{code-cell}
 :tags: ["remove-output"]
 sel_coeffs = np.array([
-        sum(md["selection_coeff"] for md in m.metadata["mutation_list"])
+        sum(mut_metadata[int(k)]["per_trait"][0]["effect_size"]
+            for k in m.derived_state.split(","))
         for m in ts.mutations()
 ])
 which_max = np.argmax(sel_coeffs)
 m = ts.mutation(which_max)
+print(f"Max selection coefficient: {sel_coeffs[which_max]} for site {m.site}")
 ts.site(m.site)
 ```
+
 ```{code-cell}
 :tags: ["remove-input"]
+print(f"Max selection coefficient: {sel_coeffs[which_max]} for site {m.site}")
 util.pp(ts.site(m.site))
 ```
 
-This allele had a whopping selection coefficient of 4.94
-and appeared about halfway through the simulation.
+This allele had a whopping selection coefficient of 5.69
+and appeared fairly late in the simulation.
 Let's find its frequency in the full population:
 
 ```{code-cell}
@@ -1296,7 +1369,7 @@ print(f"The allele is found in {full_freqs[m.site][0]} copies\n"
 ```
 
 The allele is above 50% in the population, so it is probably on its way to fixation.
-Using its SLiM ID (which is shown in its derived state, ``1616148``),
+Using its SLiM ID (which is shown in its derived state, ``305447``),
 we could reload the tree sequence into SLiM,
 restart the simulation, and use its ID to track its subsequent progression.
 
@@ -1331,4 +1404,4 @@ Also known as "gotchas".
 4. SLiM requires that the two nodes corresponding to the haplosomes of each individual
     are adjacent in the node table, and are sorted by haplosome ID.
     SLiM always writes out tree sequences like this, but it is possible to make
-    tree sequences in python that are leval otherwise but don't satisfy this requirement.
+    tree sequences in python that are legal otherwise but don't satisfy this requirement.

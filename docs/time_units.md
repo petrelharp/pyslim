@@ -226,7 +226,8 @@ so we expect generation time to go up at first.
 
 ```{code-cell}
 gts = tskit.load("generation_time.trees")
-gentimes = gts.metadata["SLiM"]["user_metadata"]["generation_times"]
+gts_metadata = gts.metadata
+gentimes = gts_metadata["SLiM"]["user_metadata"]["generation_times"]
 
 fig, ax = plt.subplots(figsize=(12, 6), dpi=300)
 ax.set_xlabel("tick")
@@ -266,7 +267,6 @@ Furthermore, since we already have mutations up until 100 time units ago,
 we need to put mutations on only previous to that time.
 
 ```{code-cell}
-gentimes = gts.metadata["SLiM"]["user_metadata"]["generation_times"]
 gt = np.mean(gentimes[-50:])
 recomb_rate = 1e-8 # per generation
 Ne = 1000 # generations

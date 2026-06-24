@@ -20,10 +20,11 @@ initialize() {
 	for (id in ids, symbol in symbols, type in types)
 	{
 		initializeChromosome(id, length, type, symbol);
-      initializeAncestralNucleotides(paste0(rep("A", length)));
+      initializeAncestralNucleotides(randomNucleotides(length));
 		initializeRecombinationRate(1e-5);
 		initializeGenomicElement(g1, 0, length-1);
 	}
+	defineGlobal("MD", Dictionary());
 }
 1 early() {
 	sim.addSubpop("p1", 10);
@@ -34,13 +35,68 @@ initialize() {
         inds = p1.individuals;
         haps = inds.haplosomesForChromosomes(chrom, includeNulls=F);
         if (length(haps) > 0) {
-          sample(haps, 1 + asInteger(length(haps)/2)).addNewDrawnMutation(m2, rdunif(10, 0, chrom.length-1));
+          mutl = sample(haps, 1 + asInteger(length(haps)/2)).addNewDrawnMutation(m2, rdunif(10, 0, chrom.length-1));
+          muts = MD.getValue("mutations");
+          for (mut in mutl) {
+				nuc = mut.mutationType.nucleotideBased ? mut.nucleotide else "N";
+				m = Dictionary(
+					"chromosome_id", mut.chromosome.id,
+					"mutationType", mut.mutationType.id,
+					"nucleotide", nuc,
+					"position", mut.position,
+					"originTick", mut.originTick
+				);
+				muts.setValue(asString(mut.id), m);
+          }
         }
     }
 }
 
+
+// MUTATION/GENOTYPE INFO
+1 first() { // reference sequences
+	refseqs = Dictionary();
+	for (chrom in sim.chromosomes) {
+		refseqs.setValue("chr" + chrom.id, chrom.ancestralNucleotides());
+	}
+	MD.setValue("reference_sequence", refseqs);
+}
+
+1 first() { // mutation information
+	MD.setValue("mutations", Dictionary());
+}
+mutation() {
+	muts = MD.getValue("mutations");
+	nuc = mut.mutationType.nucleotideBased ? mut.nucleotide else "N";
+	m = Dictionary(
+		"chromosome_id", mut.chromosome.id,
+		"mutationType", mut.mutationType.id,
+		"nucleotide", nuc,
+		"position", mut.position,
+		"originTick", mut.originTick
+	);
+	muts.setValue(asString(mut.id), m);
+	return T;
+}
 10 late() {
-    sim.treeSeqOutput(TREES_FILE);
+	subs = Dictionary();
+	for (mut in sim.substitutions) {
+		nuc = mut.mutationType.nucleotideBased ? mut.nucleotide else "N";
+		m = Dictionary(
+			"chromosome_id", mut.chromosome.id,
+			"mutationType", mut.mutationType.id,
+			"nucleotide", nuc,
+			"position", mut.position,
+			"fixationTick", mut.fixationTick
+		);
+		subs.setValue(asString(mut.id), m);
+	}
+	MD.setValue("substitutions", subs);
+}
+
+// OUTPUT/FINISH
+10 late() {
+    sim.treeSeqOutput(TREES_FILE, metadata=MD);
     catn("Done.");
     sim.simulationFinished();
 }

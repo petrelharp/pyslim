@@ -12,11 +12,16 @@
 #  retained: has retained individuals
 #  multipop: has more than one population
 #  multichrom: has more than one chromosome
+#  traits: has more than just the usual trait
+#  no_simplify: does not run simplify when writing out
+#  old_mutations: uses addMutation to add back in some previously lost mutations
+#  record_mutations: whether mutations and substitutions and reference sequence
+#       are in top-level metadata
 #  long: kinda big
 #  (chromosome type)
 # All files are of the form `tests/test_recipes/{key}`
 recipe_specs = {
-    "recipe_nonWF.slim": {"nonWF": True, "pedigree": True},
+    "recipe_nonWF.slim": {"nonWF": True, "pedigree": True, "record_mutations": True},
     "recipe_nonWF_X.slim": {"nonWF": True, "pedigree": True, "X": True},
     "recipe_nonWF_Y.slim": {"nonWF": True, "pedigree": True, "Y": True},
     "recipe_nonWF_H.slim": {"nonWF": True, "pedigree": True, "H": True},
@@ -78,14 +83,23 @@ recipe_specs = {
     },
     "recipe_long_nonWF.slim": {"nonWF": True, "long": True},
     "recipe_old_nonWF.slim": {"nonWF": True, "remembered_first": True},
-    "recipe_WF.slim": {"WF": True, "pedigree": True},
+    "recipe_WF.slim": {"WF": True, "pedigree": True, "record_mutations": True},
+    "recipe_no_simplify.slim": {"WF": True, "no_simplify": True},
     "recipe_long_WF.slim": {"WF": True, "long": True},
     "recipe_WF_migration.slim": {"WF": True, "pedigree": True, "multipop": True},
-    "recipe_nucleotides_WF.slim": {"WF": True, "pedigree": True, "nucleotides": True},
+    "recipe_nucleotides_WF.slim": {
+        "WF": True,
+        "pedigree": True,
+        "nucleotides": True,
+        "record_mutations": True,
+        "refseq": True,
+    },
     "recipe_nucleotides_nonWF.slim": {
         "nonWF": True,
         "pedigree": True,
         "nucleotides": True,
+        "record_mutations": True,
+        "refseq": True,
     },
     "recipe_nucleotides_plus_others.slim": {
         "WF": True,
@@ -177,7 +191,10 @@ recipe_specs = {
         "adds_mutations": True,
         "nucleotides": True,
         "non-nucleotides": True,
+        "record_mutations": True,
+        "refseq": True,
     },
+    "recipe_adds_old_muts.slim": {"WF": True, "old_mutations": True},
     "recipe_many_chromosomes.slim": {
         "nonWF": True,
         "pedigree": True,
@@ -188,6 +205,15 @@ recipe_specs = {
         "pedigree": True,
         "multichrom": True,
         "H-": True,
+    },
+    "recipe_with_traits.slim": {
+        "WF": True,
+        "traits": True,
+        "multichrom": True,
+        "begun_late": True,
+        "X": True,
+        "Y": True,
+        "H": True,
     },
 }
 

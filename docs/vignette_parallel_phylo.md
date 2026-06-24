@@ -110,10 +110,7 @@ f.close()
 Here's the result. Again, don't worry about the details,
 but you can see that the file encodes the phylogeny
 through a bunch of ``child : parent`` "rules":
-```{code-cell}
-:tags: ["hide-input"]
-%%bash
-cat sims.make
+```{literalinclude} sims.make
 ```
 
 With the makefile in hand,
@@ -304,9 +301,7 @@ samples per population.
 ```{code-cell}
 rng = np.random.default_rng(seed=123)
 ind_alive = pyslim.individuals_alive_at(tsu, 0)
-# TODO: this will work in the next tskit
-# ind_pops = tsu.individuals_population[ind_alive]
-ind_pops = np.array([tsu.node(tsu.individual(i).nodes[0]).population for i in ind_alive])
+ind_pops = tsu.individuals_population[ind_alive]
 subsample_indivs = [
     rng.choice(ind_alive[ind_pops == pop_ids[name]], 2)
     for name in pops

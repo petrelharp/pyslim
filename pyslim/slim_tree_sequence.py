@@ -10,6 +10,45 @@ def load(*args, **kwargs):
     raise RuntimeError("This method has been removed: use tskit.load( ) instead.")
 
 
+def mutation_metadata(ts, check=True, _ts_metadata=None):
+    """
+    Returns a dictionary whose keys are the numeric SLiM IDs of mutations,
+    and whose values are metadata entries for those mutations.
+    *Note:* this is indexed by integers, not strings, so if you obtain SLiM IDs
+    from something like ``mut.derived_state.split(",")``, you must convert
+    the result to integers before looking up metadata!
+
+    This is a simple extraction function that places the list of metadata entries
+    stored in ``ts.metadata["SLiM_mutation_list"]`` in a dictionary
+    indexed by SLiM ID. It is recommended to extract this information once
+    and use the result in script, because calling this function many times
+    (or, even just referring to ``ts.metadata`` many times)
+    can slow down scripts considerably.
+
+    :param tskit.TreeSequence ts: The tree sequence.
+
+    :returns dict: A dictionary of metadata entries, indexed by SLiM ID
+        and in sorted order by SLiM ID.
+    """
+    if _ts_metadata is None:
+        _ts_metadata = ts.metadata
+    # Note that dictionaries preserve insertion order
+    ml = _ts_metadata["SLiM_mutation_list"]
+    ml.sort(key=lambda x: x["mutation_id"])
+    out = {mut["mutation_id"]: mut for mut in ml}
+    if check:
+        ids = {int(j) for x in ts.mutations_derived_state for j in x.split(",")}
+        for k in ids:
+            if k not in out:
+                raise ValueError(
+                    "Top-level mutation metadata is missing "
+                    f"information for mutation ID {k}: "
+                    "do you need to run "
+                    "pyslim.add_mutation_metadata(ts)?"
+                )
+    return out
+
+
 def mutation_at(ts, node, position, time=None):
     """
     Finds the mutation present in the genome of ``node`` at ``position``,
@@ -59,7 +98,7 @@ def mutation_at(ts, node, position, time=None):
     return out
 
 
-def nucleotide_at(ts, node, position, time=None):
+def nucleotide_at(ts, node, position, time=None, mut_metadata=None):
     """
     Finds the nucleotide present in the genome of ``node`` at ``position``.
     Warning: if ``node`` is not actually in the tree sequence (e.g., not
@@ -69,20 +108,34 @@ def nucleotide_at(ts, node, position, time=None):
     at ``position`` inherited by ``node`` that occurred at or before
     ``time`` ago.
 
+    This method uses a dictionary of mutation metadata, computed by
+    :meth:`mut_metadata`. This step can be expensive if there are
+    many mutations, so this can be pre-computed and passed in as
+    ``mutations``. If not provided, it will be computed.
+
     :param int node: The index of a node in the tree sequence.
     :param float position: A position along the genome.
     :param int time: The time ago that we want the nucleotide, or None,
         in which case the ``time`` of ``node`` is used.
+    :param dict mut_metadata: If provided, a dictionary mapping
+        mutation ID to metadata, as returned by ``pyslim.mutation_metadata(ts)``.
 
     :returns: Index of the nucleotide in ``NUCLEOTIDES`` (0=A, 1=C, 2=G, 3=T).
     """
     if not ts.has_reference_sequence():
         raise ValueError("This tree sequence has no reference sequence.")
+    if mut_metadata is None:
+        mut_metadata = mutation_metadata(ts)
     mut_id = mutation_at(ts, node, position, time)
     if mut_id == tskit.NULL:
         out = NUCLEOTIDES.index(ts.reference_sequence.data[int(position)])
     else:
         mut = ts.mutation(mut_id)
-        k = np.argmax([u["slim_time"] for u in mut.metadata["mutation_list"]])
-        out = mut.metadata["mutation_list"][k]["nucleotide"]
+        _, k = max(
+            [
+                (mut_metadata[int(j)]["slim_time"], int(j))
+                for j in mut.derived_state.split(",")
+            ]
+        )
+        out = mut_metadata[k]["nucleotide"]
     return out
