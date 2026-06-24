@@ -1,7 +1,7 @@
 initialize()
 {
    initializeSLiMModelType("WF");
-   initializeTreeSeq();
+   initializeTreeSeq(timeUnit="generations");
    initializeMutationRate(1e-6);
    initializeMutationType("m1", 0.5, "e", -0.1);
    initializeMutationType("m2", 0.5, "e", 0.5);

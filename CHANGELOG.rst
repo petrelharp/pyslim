@@ -2,7 +2,52 @@
 [1.1.2] - 2026-XX-XX
 ********************
 
-In development
+**Breaking changes**:
+
+- The release of SLiM 6.0, changes to metadata (see below) mean that accessing
+  top-level metadata (e.g., `ts.metadata["SLiM"]`) more than a few times in
+  a script will take a long time. Scripts that previously ran quickly may take a
+  prohibitively long. See the documentation for simple changes that fix the problem:
+  https://tskit.dev/pyslim/docs/latest/previous_versions.html
+
+- The SLiM tree sequence file version number has changed to 1.0. Use `pyslim.update`
+  to convert your tree sequence file to this format.
+
+- Metadata for SLiM's mutations are no longer stored along with the tskit mutations,
+  because mutation stacking allows each tskit mutation to be associated with more
+  than one SLiM mutation. Now, metadata for each unique mutation is stored in
+  top-level metadata, under `ts.metadata["SLiM_mutation_list"]`. The recommended
+  way to access this information is by obtaining the SLiM ID-to-metadata dict
+  returned by `pyslim.mutation_metadata(ts)`.
+
+- Previously, `msprime.sim_mutations` with the `msprime.SLiMMutationModel`
+  would record SLiM metadata along with each new mutation. However, msprime
+  does not modify top-level metadata, and so the method `add_mutation_metadata`
+  should be used after adding SLiM mutations.
+
+- This is a SLiM change, but top-level metadata is now encoded using the `json+struct`
+  codec now provided by tskit (so that the mutation metadata is not too large/slow).
+
+- The top-level and individual metadata schemas now depend on the number of traits
+  in the model. The methods `slim_tree_sequence_metadata_schema` and
+  `slim_individual_metadata_schema` can be used to produce correct schema.
+
+**Bug fixes:**
+
+- In some previous versions, converting files produced by a yet-older version of SLiM
+  to the previously-current file version dropped some information from metadata:
+  nucleotide values for mutations, and pedigree parent IDs for individuals. This only
+  may have affected users using `pyslim.convert(ts)` in a previous version of pyslim
+  on a tree sequence `ts` with SLiM file version prior to 0.9.
+
+**New features**:
+
+- SLiM now includes in metadata information about the effects of mutations on
+  quantitative traits, the values of traits for individuals, and the values of
+  various "tags" defined in SLiM.
+
+- `default_slim_metadata` can now take additional arguments to modify the returned
+  values.
 
 ********************
 [1.1.1] - 2026-03-06

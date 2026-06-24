@@ -81,17 +81,18 @@ so first we check that all the existing mutations are of a different type.
 rts = pyslim.recapitate(ts, ancestral_Ne=1000, recombination_rate=1e-8, random_seed=6)
 
 # check type m0 is not used:
-mut_types = set([md['mutation_type']
-                for mut in ts.mutations()
-                for md in mut.metadata['mutation_list']])
+mut_metadata = pyslim.mutation_metadata(rts)
+mut_types = set([md['mutation_type'] for md in mut_metadata.values()])
 print(f"Keeping {rts.num_mutations} existing mutations of type(s) {mut_types}.")
 assert 0 not in mut_types
 
 # add type m0 mutations
 next_id = pyslim.next_slim_mutation_id(rts)
-rts = msprime.sim_mutations(
+rts = pyslim.add_mutation_metadata(
+        msprime.sim_mutations(
             rts, rate=1e-8, random_seed=7, keep=True,
             model=msprime.SLiMMutationModel(type=0, next_id=next_id)
+        )
 )
 
 p = rts.sample_count_stat(
@@ -143,7 +144,7 @@ new_ts = msprime.sim_mutations(
                  new_ts, rate=1e-8, random_seed=10, keep=True,
                  model=msprime.SLiMMutationModel(type=0)
         )
-new_tables = new_ts.tables
+new_tables = new_ts.dump_tables()
 # check that the spurious samples are 20000 and 20001
 for n in (20000, 20001):
    assert n in new_ts.samples()
@@ -158,13 +159,11 @@ randomly assign each to a node at the end of the SLiM simulation,
 and merge them.
 
 ```{code-cell}
-
 new_nodes = np.where(new_tables.nodes.time == new_time)[0]
 print(f"There are {len(new_nodes)} nodes from the start of the new simulation.")
-# There are 4425 nodes from the start of the new simulation.
 
 slim_nodes = rts.samples(time=0)
-assert(len(slim_nodes) == 20000)
+assert len(slim_nodes) == 20000
 
 # randomly give new_nodes IDs in rts
 node_map = np.repeat(tskit.NULL, new_tables.nodes.num_rows)
@@ -173,15 +172,15 @@ node_map[new_nodes] = np.random.choice(slim_nodes, len(new_nodes), replace=False
 # shift times: in nodes and mutations
 # since tree sequences are not mutable, we do this in the tables directly
 # also, unmark the nodes at the end of the SLiM simulation as samples
-tables = rts.tables
+tables = rts.dump_tables()
 tables.nodes.flags = tables.nodes.flags & ~np.uint32(tskit.NODE_IS_SAMPLE)
 tables.nodes.time = tables.nodes.time + new_time
 tables.mutations.time = tables.mutations.time + new_time
 
 # merge the two sets of tables
 tables.union(new_tables, node_map,
-            add_populations=False,
-            check_shared_equality=False)
+             add_populations=False,
+             check_shared_equality=False)
 
 # get back the tree sequence
 full_ts = tables.tree_sequence()
@@ -243,3 +242,12 @@ to be identical in the two tree sequences, so ``union`` by default throws an err
 We don't expect that in this case, because, for instance,
 there could be a mutation above one of the terminal nodes in the SLiM tree sequence;
 this would clearly not be present in the new tree sequence.
+
+*Note:* sharp-eyed readers will note that the call to ``sim_mutations`` was not wrapped in
+{func}`.add_mutation_metadata`. If we wanted to read this tree sequence into SLiM again
+we'd need to add mutation metadata for these last mutations.
+The easiest place to do this would be a call to {func}`.add_mutation_metadata_tables`
+just after the ``union``
+(thus avoiding an extra conversion to tree sequence);
+this will add metadata for only those mutations not already recorded.
+We've left that step out of the code here for simplicity.

@@ -20,6 +20,25 @@ class PyslimTestCase:
     Base class for test cases in pyslim.
     """
 
+    def assert_indiv_metadata_equal(self, a, b):
+        # individual metadata can have nan's in it, thus this function
+        assert isinstance(a, dict)
+        assert type(a) == type(b)
+        assert a.keys() == b.keys()
+        for k in a:
+            if k != "per_trait":
+                assert a[k] == b[k]
+        apt = a["per_trait"]
+        bpt = b["per_trait"]
+        assert len(apt) == len(bpt)
+        for x, y in zip(apt, bpt):
+            assert x.keys() == y.keys()
+            for k in x:
+                if k == "phenotype":
+                    assert (np.isnan(x[k]) and np.isnan(y[k])) or (x[k] == y[k])
+                else:
+                    assert x[k] == y[k]
+
     def verify_haplotype_equality(self, ts, slim_ts):
         assert ts.num_sites == slim_ts.num_sites
         for j, v1, v2 in zip(range(ts.num_sites), ts.variants(), slim_ts.variants()):
@@ -53,9 +72,8 @@ class PyslimTestCase:
         assert t1.metadata_schema == t2.metadata_schema
         assert t1.metadata == t2.metadata
         # and now check the underlying bytes
-        # TODO: use the public interface if https://github.com/tskit-dev/tskit/issues/832 happens
-        md1 = t1._ll_tables.metadata
-        md2 = t2._ll_tables.metadata
+        md1 = t1.metadata_bytes
+        md2 = t2.metadata_bytes
         assert md1 == md2
 
     def verify_trees_equal(self, ts1, ts2):
@@ -76,10 +94,6 @@ class PyslimTestCase:
             if n.metadata is not None:
                 map2[n.metadata["slim_id"]] = j
         assert set(map1.keys()) == set(map2.keys())
-        print(ts1)
-        print(map1)
-        print(ts2)
-        print(map2)
         sids = list(map1.keys())
         for sid in sids:
             n1 = ts1.node(map1[sid])
@@ -88,22 +102,13 @@ class PyslimTestCase:
             assert n1.metadata == n2.metadata
             i1 = ts1.individual(n1.individual)
             i2 = ts2.individual(n2.individual)
-            if i1.metadata != i2.metadata:
-                print("i1: ", i1.metadata)
-                print("i2: ", i2.metadata)
-            assert i1.metadata == i2.metadata
+            self.assert_indiv_metadata_equal(i1.metadata, i2.metadata)
         for _ in range(10):
             pos = random.uniform(0, ts1.sequence_length)
             t1 = ts1.at(pos)
             t2 = ts2.at(pos)
             for _ in range(10):
                 a, b = random.choices(sids, k=2)
-                print(a, b, map1[a], map1[b], map2[a], map2[b])
-                print(t1)
-                print("a", t1.time(map1[a]))
-                print("b", t1.time(map1[b]))
-                print("1", t1.tmrca(map1[a], map1[b]))
-                print("2", t2.tmrca(map2[a], map2[b]))
                 assert t1.tmrca(map1[a], map1[b]) == t2.tmrca(map2[a], map2[b])
 
     def assertTableCollectionsEqual(

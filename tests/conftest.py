@@ -7,6 +7,7 @@ import msprime
 import pytest
 import tskit
 from filelock import FileLock
+from frozendict import frozendict
 
 from .recipe_specs import recipe_specs
 
@@ -73,7 +74,7 @@ class Outfiles:
                 c, e = os.path.splitext(cfile)
                 if e == ".trees":
                     out[c] = tskit.load(os.path.join(path, cfile))
-        return out
+        return frozendict(out)
 
     def __init__(self, out_dir):
         # Note: the 'key' below cannot match a 'key' in recipe_specs
