@@ -11,7 +11,7 @@ jobs:
   Docs:
     permissions:
       contents: read
-    uses: petrelharp/tskit.github/.github/workflows/docs.yml@a2c5f3a87b26d6a45c75294b221bdf8d6fdc7d31
+    uses: petrelharp/tskit.github/.github/workflows/docs.yml@3a63d1a5bb0cbccfbc79566ade6f868368268b59
     with:
       install-slim: true
       install-slim-branch: "multitrait"
