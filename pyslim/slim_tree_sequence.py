@@ -10,7 +10,7 @@ def load(*args, **kwargs):
     raise RuntimeError("This method has been removed: use tskit.load( ) instead.")
 
 
-def mutation_metadata(ts, check=True, _ts_metadata=None):
+def mutation_metadata(ts, check=True, ts_metadata=None):
     """
     Returns a dictionary whose keys are the numeric SLiM IDs of mutations,
     and whose values are metadata entries for those mutations.
@@ -26,14 +26,18 @@ def mutation_metadata(ts, check=True, _ts_metadata=None):
     can slow down scripts considerably.
 
     :param tskit.TreeSequence ts: The tree sequence.
+    :param bool check: Whether to verify that all mutations are described in top-level
+        metadata.
+    :param dict ts_metadata: Optionally, the top-level metadata for ``ts``. If
+        this does not match the actual top-level metadata, incorrect values may result.
 
     :returns dict: A dictionary of metadata entries, indexed by SLiM ID
         and in sorted order by SLiM ID.
     """
-    if _ts_metadata is None:
-        _ts_metadata = ts.metadata
+    if ts_metadata is None:
+        ts_metadata = ts.metadata
     # Note that dictionaries preserve insertion order
-    ml = _ts_metadata["SLiM_mutation_list"]
+    ml = ts_metadata["SLiM_mutation_list"]
     ml.sort(key=lambda x: x["mutation_id"])
     out = {mut["mutation_id"]: mut for mut in ml}
     if check:

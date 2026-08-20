@@ -36,12 +36,13 @@ This tutorial covers the most common uses of tree sequences in SLiM/pyslim.
 ## Recapitation, simplification, and mutation
 
 Perhaps the most common pyslim operations involve [](sec_tutorial_recapitation),
-[](sec_tutorial_simplification),  and/or [](sec_tutorial_adding_neutral_mutations).
+[](sec_tutorial_simplification), and/or [](sec_tutorial_adding_neutral_mutations).
 Below we illustrate all three in the context of running a "hybrid" simulation, combining
-both forwards and backwards (coalescent) methods. This hybrid approach is a popular
+both forwards and backwards (coalescent) methods. Such hybrid approaches provide a popular
 application of pyslim because coalescent algorithms, although more limited in the degree
 of biological realism they can attain, can be much faster than the forwards algorithms
 implemented in SLiM.
+(See more discussion in [Gopalan et al 2025](https://doi.org/10.1101/2025.09.30.679676).)
 
 A typical use-case is to take an existing SLiM simulation and endow
 it with a history derived from a coalescent simulation: this is known as *recapitation*.
@@ -49,9 +50,8 @@ For instance, suppose we have a SLiM simulation of a population of 100,000 indiv
 that we have run for 10,000 generations without neutral mutations. Now, we wish to
 extract whole-genome genotype data for only 1,000 individuals. Here's one way to do it:
 
-
 1. {func}`.recapitate` :
-   The simulation has likely not reached demographic equilibrium - it has not
+   The simulation has likely not reached equilibrium - it has not
    *coalesced* entirely; recapitation uses coalescent simulation to provide
    a "prior history" for the initial generation of the simulation.
 
@@ -69,7 +69,7 @@ fluctuating around 1000 individuals, for 1000 generations:
 ```
 
 You can run this in the shell,
-setting the random seed so you get exactly the same results
+setting the random seed (with `-s 23`) so you get exactly the same results
 as in the code below:
 ```{code-cell}
 :tags: ["hide-output"]
@@ -82,6 +82,14 @@ slim -s 23 example_sim.slim
 
 ### Recapitation
 
+If some individuals in the final generation of simulation, at some point on the genome,
+do not have a MRCA within the tree sequence,
+we say that the simulation has not coalesced.
+This means, effectively, that the final state of the simulation depends on the genotypes
+of the initial generation. If the simulation was begun in an empty state,
+we are effectively assuming the initial state had no genetic diversity.
+Usually, we'd like instead to assume that the simulation began with some
+at least roughly reasonable levels of genetic diversity.
 
 ```{figure} _static/pedigree_recapitate.png
 ---
@@ -95,10 +103,13 @@ for a diagram of the previous state.)
 ```
 
 Although we can initialize a SLiM simulation with the results of a coalescent simulation,
-if during the simulation we don't actually use the genotypes for anything, it
-can be much more efficient to do this afterwards, hence only doing a coalescent
-simulation for the portions of the first-generation ancestors that have
-not yet coalesced. (See the SLiM manual for more explanation.)
+if SLiM don't actually use the genotypes for anything, it
+can be much more efficient to run the coalescent simulation *afterwards*,
+hence only doing a coalescent simulation
+for the portions of the first-generation ancestors that have
+not yet coalesced.
+(See the SLiM manual for more explanation, or
+[Kelleher et al 2018](https://doi.org/10.1371/journal.pcbi.1006581).)
 This is depicted in {numref}`figure {number} <pedigree_recapitate>`:
 imagine that at some sites, some of the samples
 don't share a common ancestor within the SLiMulated portion of history (shown in blue).
@@ -119,8 +130,19 @@ rts = pyslim.recapitate(orig_ts,
             recombination_rate=1e-8,
             ancestral_Ne=200, random_seed=5)
 ```
-The warning is harmless; it is reminding us to think about generation time
-when recapitating a nonWF simulation (a topic we'll deal with later).
+(Here and below we set the random seed
+so the content of this document does not change;
+you should *not* usually explicitly set
+the random seed in your scripts.)
+
+This will produce a warning:
+
+> TimeUnitsMismatchWarning: The initial_state has time_units=ticks but time is measured
+> in generations in msprime. This may lead to significant discrepancies between the
+> timescales.
+
+This is simplfy reminding us to think about generation time
+when recapitating a nonWF simulation (see [](sec_time_units)).
 
 We can check that this worked as expected, by verifying that after recapitation
 all trees have only one root:
@@ -135,11 +157,30 @@ print(f"Maximum number of roots before recapitation: {orig_max_roots}\n"
 The {func}`.recapitate` method
 is just a thin wrapper around {func}`msprime.sim_ancestry`,
 and you need to set up demography explicitly - for instance, in the example above
-we've simulated from an ancestral population of ``Ne=200`` diploids.
+we've effectively simulated from an ancestral population of ``Ne=200`` diploids.
 If you have more than one population,
 you must set migration rates or else coalescence will never happen
 (see [](sec_recapitate_with_migration) for an example,
 and {func}`.recapitate` for more).
+
+What population size (`ancestral_Ne`) should you use for recapitation?
+This question is far beyond the scope of this documentation,
+but here are a few helpful points:
+First, recapitation is (nearly) exactly identical to having initialized
+the SLiM simulation with the randomly produced offspring of the endpoint
+of a neutral Wright-Fisher simulation that was begun infinitely far in the past.
+This Wright-Fisher model is crude: it does not have separate sexes,
+for instance, and is in continuous time unless the 
+{ref}`DTWF model <msprime:sec_ancestry_models_dtwf>` is used;
+however, a large body of mathematical work on coalescent theory
+has shown that this is a good
+approximation to a wide class of more realistic models.
+Second, this is certainly an approximation to reality,
+but then again so is everything else,
+and if the start of the SLiM simulation was far enough in the past,
+in most cases the precise details won't substantially affect the outcomes.
+Third, you can always evaluate the effect of your choices
+by changing them a bit and seeing if it affects the results.
 
 
 #### Recapitation with a nonuniform recombination map
@@ -156,7 +197,8 @@ To use the SLiM values for msprime, we need to do three things:
 
 The reason why msprime "positions" must start with 0 (step 1) is that in SLiM,
 a position or "end" indicates the end of a recombination block such that its associated
-"rate" applies to everything to the left of that end (see ``initializeRecombinationRate``).
+"rate" applies to everything to the left of that end (see ``initializeRecombinationRate``),
+while msprime's format indicates the start of that same block.
 In msprime, we will pass in a {class}`msprime.RateMap`,
 which requires two things:
 
@@ -186,59 +228,28 @@ This describes recombination rates across a 100Mb genome with higher rates on th
 (for instance, 3.2 and 2.8 cM/Mb in the first and last 15Mb respectively)
 and lower rates in the middle (0.25 cM/Mb between 50Mb and 85Mb).
 The first column gives the starting position, in bp,
-for the window whose recombination rate is given in the second column.
-(*Note:* this is *not* a standard format for recombination maps -
-it is more usual for the *starting* position to be listed!)
-
-Here is SLiM code to read this file and set the recombination rates:
-
-```
-lines = readFile("recomb_rates.tsv");
-header = strsplit(lines[0], "\t");
-if (header[0] != "end_position"
-    | header[1] != "rate(cM/Mb)") {
-   stop("Unexpected format!");
-}
-rates = NULL;
-ends = NULL;
-nwindows = length(lines) - 1;
-for (line in lines[1:nwindows]) {
-  components = strsplit(line, "\t");
-  ends = c(ends, asInteger(components[0]));
-  rates = c(rates, asFloat(components[1]));
-}
-initializeRecombinationRate(rates * 1e-8, ends);
-```
+for the window whose recombination rate is given in the second column;
+the final position is given on the last line with a recombination rate of 0
+(it is a failing of this relatively common file format that there's no good
+way to say where the chromosome ends).
+To read this file into SLiM, remove the first and last lines
+and use the `initializeRecombinationRateFromFile()` function in SLiM,
+which by default scales rates by the `1e-8` factor required to convert from
+cM/Mb to crossovers per bp.
 
 Now, here's code to take the same recombination map used in SLiM,
 and use it for recapitation in msprime:
 
 ```{code-cell}
-positions = []
-rates = []
-with open('_static/recomb_rates.tsv', 'r') as file:
-  header = file.readline().strip().split("\t")
-  assert(header[0] == "end_position" and header[1] == "rate(cM/Mb)")
-  for line in file:
-     components = line.split("\t")
-     positions.append(float(components[0]))
-     rates.append(1e-8 * float(components[1]))
-
-# step 1
-positions.insert(0, 0)
-# step 2
-positions[-1] += 1
-assert positions[-1] == orig_ts.sequence_length
-
-recomb_map = msprime.RateMap(position=positions, rate=rates)
+recomb_map = msprime.RateMap.read_hapmap(
+    "_static/recomb_rates.tsv",
+    position_col=0, rate_col=1
+)
 rts = pyslim.recapitate(orig_ts,
                 recombination_rate=recomb_map,
                 ancestral_Ne=200, random_seed=7)
 assert(max([t.num_roots for t in rts.trees()]) == 1)
 ```
-(As before, you should *not* usually explicitly set
-the random seed in your scripts; we set it here so
-the content of this document does not change.)
 
 :::{note}
 Starting from msprime 1.0, the default model of recombination
@@ -267,10 +278,11 @@ than you will be lucky enough to have in real life,
 so at some point you may want to reduce your dataset to a realistic sample size.
 We can get rid of unneeded samples and any extra information from them by using
 an operation called *simplification* (this is the same basic approach that SLiM
-implements under the hood when outputting a tree sequence, as described in
+implements under the hood to keep down memory usage, as described in
 [the introduction](sec_left_in_tree_sequence)).
 
-Depicted in the figure at the right is the result of applying an explicit call to
+Depicted in {numref}`figure {number} <pedigree_simplify>`
+is the result of applying an explicit call to
 {meth}`tskit.TreeSequence.simplify` to our example tree sequence.
 In the call we asked to keep only 4
 genomes (contained in 2 of the individuals in the current generation). This has
@@ -289,24 +301,27 @@ only using it if necessary.
 It is important that simplification - if it happens at all -
 either (a) comes after recapitation, or (b) is done with the
 ``keep_input_roots=True`` option (see {meth}`tskit.TreeSequence.simplify`).
-This is because simplification removes some of the
+This is because simplification will almost certainly remove some of the
 ancestral genomes in the first generation,
 which are necessary for recapitation,
 unless it is asked to "keep the input roots".
 If we simplify without this option before recapitating,
-some of the first-generation blue chromosomes in the figure on the right
+some of the first-generation blue chromosomes
+in {numref}`figure {number} <pedigree_simplify>`
 would not be present, so the coalescent simulation would start from a more recent point in time
 than it really should.
 As an extreme example, suppose our SLiM simulation has a single diploid who has reproduced
 by clonal reproduction for 1,000 generations,
 so that the final tree sequence is just two vertical lines of descent going back
 to the two chromosomes in the initial individual alive 1,000 generations ago.
-Recapitation would produce a shared history for these two chromosomes,
+Recapitation would produce a shared history for these two chromosomes
 that would coalesce some time longer ago than 1,000 generations.
 However, if we simplified first, then those two branches going back 1,000 generations would be removed,
 since they don't convey any information about the shape of the tree;
 and so recapitation might produce a common ancestor more recently than 1,000 generations,
 which would be inconsistent with the SLiM simulation.
+
+#### How to simplify
 
 After recapitation,
 simplification to the history of 100 individuals alive today
@@ -356,11 +371,13 @@ If you have recorded a tree sequence in SLiM, likely you have not included any n
 since it is much more efficient to simply add these on afterwards.
 To add these (in a completely equivalent way to having included them during the simulation),
 you can use the {func}`msprime.sim_mutations` function, which returns a new tree sequence with additional mutations.
-Continuing with the cartoons from above, these are added to each branch of the tree sequence
-at the rate per unit time that you request.
+These are added to each branch of the tree sequence
+at the rate per unit time that you request,
+as depicted in {numref}`figure {number} <pedigree_mutate>`.
 We'll add these using the {class}`msprime.SLiMMutationModel`, so that the file can be read back into SLiM,
 but any of the other mutation models in msprime could be used.
-This works as follows:
+This works as follows, starting with the tree sequence
+produced above by recapitation:
 
 ```{code-cell}
 next_id = pyslim.next_slim_mutation_id(sts)
@@ -370,7 +387,8 @@ ts = pyslim.add_mutation_metadata(
            rate=1e-8,
            model=msprime.SLiMMutationModel(type=0, next_id=next_id),
            keep=True,
-        )
+        ),
+        mutation_type=0,
 )
 
 print(f"The tree sequence now has {ts.num_mutations} mutations,\n"
@@ -380,23 +398,25 @@ print(f"The tree sequence now has {ts.num_mutations} mutations,\n"
 
 What's going on here? Let's step through the code.
 
-1. The mutation ``rate = 1e-8``, which adds mutations at a rate of {math}`10^{-8}` per bp.
-    Unlike previous versions of msprime, this adds mutations using a discrete-sites model,
-    i.e., only at integer locations (like SLiM).
+1. The mutation ``rate = 1e-8`` says mutations are added at a rate of {math}`10^{-8}` per bp.
 
-2. We're passing ``type=0`` to the mutation model.
-    This is because SLiM mutations need a "mutation type",
-    and it makes the most sense if we add a type that was unused in the simulation.
-    In this example we don't have any existing mutation types, so we can safely use ``type=0``.
-
-3. We also add ``keep = True``, to keep any existing mutations.
+2. We specify ``keep = True``, to keep any existing mutations.
     In this example there aren't any, so this isn't strictly necessary,
     but this is a good default.
 
-4. If there are existing SLiM mutations on the tree sequence we need to
+3. If there are existing SLiM mutations on the tree sequence we need to
     make sure any newly added mutations have distinct SLiM IDs,
     so we use {func}`.next_slim_mutation_id` to figure out
     what the next available ID is, and pass it in.
+
+4. After ``msprime`` adds the mutations, if we want to load this into SLiM,
+    we need to add information about the mutations using {func}`add_mutation_metadata`.
+
+5. We're passing ``mutation_type=0`` to {func}`add_mutation_metadata`.
+    This is because SLiM mutations need a "mutation type",
+    and it makes the most sense if we add a type that was unused in the simulation.
+    In this example we don't have any existing mutation types,
+    so we can safely use ``type=0``, producing mutations of type ``m0`` in SLiM.
 
 
 (sec_output)=
@@ -428,10 +448,10 @@ with open("example_sim.vcf", "w") as vcffile:
     nts.write_vcf(vcffile, individuals=sample_indivs[:5])
 ```
 
-Here we've just extracted genotypes for the first five individuals;
-see below for what's going on in that code and what you probably
-actually want to do;
-see also {meth}`tskit.TreeSequence.write_vcf` for more options.
+Here we've just extracted genotypes for the first five individuals
+(see [](sec_extracting_individuals) for more on this),
+and have not taken advantage of the options in {meth}`tskit.TreeSequence.write_vcf`
+that help make the output more useful.
 
 For instance, if you want to use the SLiM pedigree IDs for the names in the VCF file,
 we could do:
@@ -449,6 +469,46 @@ with open("example_sim2.vcf", "w") as vcffile:
 ```
 
 
+(sec_tutorial_mutation_metadata)=
+
+## Mutation metadata
+
+Because of mutation stacking (see the SLiM manual),
+each "tskit mutation" can represent a superposition of more than one
+"SLiM mutation".
+This is recorded by setting the derived state of the tskit mutation
+to a comma-separated string of SLiM mutation IDs
+(or the empty string, to denote "no mutations").
+So, each SLiM mutation can thus appear in more than one tskit mutation,
+and so the [metadata](sec_metadata) about these is stored in top-level metadata,
+rather than along with the tskit mutations.
+[](sec_tutorial_selected_mutations) has a more in-depth example, but here is a quick overview.
+To print out the information about each SLiM mutation "carried"
+by a given tskit mutation, whose SLiM IDs are stored in the `derived_state`
+as a comma-separated string, we'd do:
+```{code-cell}
+:tags: ["remove-output"]
+mut_metadata = pyslim.mutation_metadata(ts)
+
+mut = ts.mutation(0)
+for x in mut.derived_state.split(","):
+    print(mut_metadata[int(x)])
+```
+```{code-cell}
+:tags: ["remove-input"]
+mut_metadata = pyslim.mutation_metadata(ts)
+
+mut = ts.mutation(0)
+for x in mut.derived_state.split(","):
+    util.pp(mut_metadata[int(x)])
+```
+See [](sec_tutorial_selected_mutations) for an example where a tskit mutation
+carries more than one (stacked) SLiM mutation.
+**Note:** the {func}`.mutation_metadata`-returned dictionary
+is indexed by **ints**, not strings, so be sure to convert your
+SLiM IDs to ints before looking them up!
+
+
 (sec_extracting_individuals)=
 
 ## Extracting SLiM individuals
@@ -458,7 +518,7 @@ individuals from a simulation,
 for analysis or for outputting their genotypes, for instance.
 This section demonstrates some basic manipulations of individuals.
 
-### Extracting a sample of individuals
+### Extracting a random sample of individuals
 
 The first, most common method to extract individuals is simply to get all
 those that were alive at a particular time,
@@ -474,7 +534,7 @@ print(f"There are {len(alive_indivs)} individuals alive in the final generation.
 ```
 
 Here, ``alive_indivs`` is a vector of *individual* IDs,
-so one way to take a sample of living individuals
+so one way to take a random sample of living individuals
 and write their SNPs to a VCF is:
 
 ```{code-cell}
@@ -485,70 +545,79 @@ with open("example_snps.vcf", "w") as vcffile:
     ts.write_vcf(vcffile, individuals=keep_indivs)
 ```
 
-If you've done nothing else to the output from SLiM,
-then this code will work,
-but it does requires all alive individuals to be *samples*.
-A situation in which this isn't the case is shown in the next section.
 
+### The non-equivalence of "individual" and "sample"
 
-### Extracting individuals after simplification
+A somewhat confusing concept in tskit is that of a 
+{ref}`sample node <tskit:sec_data_model_definitions_sample>`.
+If you think of the tree sequence as containing information about some
+genetic data, then the sample nodes are those that represent our actual data,
+while other nodes represent ancestors.
+In practice, many tskit methods apply by default to the samples.
 
-If the tree sequence has been simplified to retain only information
-about a set of focal individuals,
-then knowing an individual is alive at the end of the simulation
-isn't enough to guarantee we have their entire genome sequence:
-there are often individuals retained after simplification with
-one or more non-sample nodes.
-So, to output genotypes after simplification, we need to also check
-that the individuals' nodes are also *samples*.
-As mentioned earlier, {meth}`tskit.TreeSequence.simplify` takes a list
-of nodes as input:
+However, we may have individuals in the tree sequence whose nodes are not samples,
+and sometimes it is important to know this.
+For instance, by default {meth}`tskit.TreeSequence.write_vcf`
+will only output columns for sample nodes, silently omitting any non-sample nodes
+among the individuals provided.
+For instance, if the tree sequence has been simplified to retain only information
+about a set of focal individuals, these nodes are marked as samples,
+but other individuals who are alive at the end of the simulation may
+still be in the tree sequence (e.g., parents of a pair of focal individuals)
+but their entire genomes may not be present
+and their nodes may not be marked as samples.
 
+Here's an example. We'll simplify down to a random sample of the "children"
+(those born during the last tick 
+(as mentioned earlier, {meth}`tskit.TreeSequence.simplify` takes a list
+of nodes as input):
 ```{code-cell}
+children = [ind.id for ind in orig_ts.individuals() if ind.metadata['age'] == 0]
+keep_indivs = rng.choice(children, 10, replace=False)
 keep_nodes = []
 for i in keep_indivs:
     keep_nodes.extend(orig_ts.individual(i).nodes)
 sts = rts.simplify(keep_nodes)
 ts = msprime.sim_mutations(sts, rate=1e-8, random_seed=1)
 ```
-Individuals are retained by simplify if any of their nodes are,
+
+Individuals are retained by simplify if any of their nodes are retained,
 so we would get an alive individual without sample nodes if, for instance,
 a parent and two offspring are all alive, and we happen to keep the offspring
 but not the parent.
-For this reason, if at this point we try to extract genotypes for all of the
-alive individuals, we encounter a (somewhat confusing) error:
+Now, we write out to VCF:
 
 ```{code-cell}
 alive_indivs = pyslim.individuals_alive_at(ts, 0)
-try:
-    with open("example_snps.vcf", "w") as vcffile:
-        ts.write_vcf(vcffile, individuals=alive_indivs)
-except Exception as e:
-    print ("Error:")
-    print (e)
-```
-
-This is just telling us that some of the individuals we're trying
-to write to the VCF have nodes that are not samples.
-The reference to "missing" is a red herring:
-see {ref}`tskit documentation <tskit:sec_data_model_missing_data>`
-for what it's talking about.
-So, instead of writing out genotypes of everyone alive,
-we need to get the list of alive individuals *whose nodes are samples*,
-using {meth}`is_sample() <tskit.Node.is_sample>`:
-
-```{code-cell}
-indivlist = []
-for i in alive_indivs:
-    ind = ts.individual(i)
-    if ts.node(ind.nodes[0]).is_sample():
-       indivlist.append(i)
-       # if one node is a sample, the other should be also:
-       assert ts.node(ind.nodes[1]).is_sample()
+print(f"There are {len(alive_indivs)} individuals alive.")
 with open("example_snps.vcf", "w") as vcffile:
-    ts.write_vcf(vcffile, individuals=indivlist)
+    ts.write_vcf(vcffile, individuals=alive_indivs)
 ```
 
+We know that this tree sequence has only 10 individuals with sample
+(those children, chosen above), but there are more alive individuals.
+The resulting VCF has only 10 columns (note some numbers are missed in the
+column headers), which could be surprising,
+because we passed a longer list to the `individuals=` argument to
+{meth}`tskit.TreeSequence.write_vcf`:
+```{code-cell}
+%%bash
+head example_snps.vcf
+```
+
+The solution here would be to instead pass a list of the alive individuals who
+are samples to `write_vcf`, which we can obtain like so:
+```{code-cell}
+sample_indivs = [
+    i for i in pyslim.individuals_alive_at(ts, 0)
+    if ts.node(ts.individual(i).nodes[0]).is_sample()
+]
+len(sample_indivs)
+```
+Note that we only check one node of an individual to see if it is a sample;
+because we included either all or none of the nodes of each individual,
+if one node of an individual is a sample node,
+the other is guaranteed to be as well.
 
 ### Extracting particular individuals
 
@@ -568,7 +637,12 @@ Let's run it:
 slim -s 32 migrants.slim
 ```
 
-To count up how many individuals are in each population,
+In the tree sequence, "populations" are associated with nodes, not individuals,
+and so to find the population a given individual `ind` was born in,
+we find the list of IDs of that individual's nodes with `ind.nodes`,
+and then obtain the actual node object with `ts.node( )`.
+So, to count up how many individuals are in each population,
+we need to look
 we could do:
 
 ```{code-cell}
@@ -603,8 +677,8 @@ it will run forever, unable to coalesce.
 By default, {func}`.recapitate` *merges* the two populations into a single
 one of size ``ancestral_Ne``.
 But, if we'd like them to stay separate, we need to inclue migration between them.
-Here's how we set up the demography using msprime's tools:
-
+Here's how we set up the demography using
+{ref}`msprime's tools <msprime:sec_demography>`:
 ```{code-cell}
 demography = msprime.Demography.from_tree_sequence(orig_ts)
 for pop in demography.populations:
@@ -638,7 +712,10 @@ Let's compute genetic diversity within and between each of the two populations
 often denoted {math}`\pi` and {math}`d_{xy}`).
 To do this, we need to extract the node IDs from the individuals of the two populations
 that are alive at the end of the simulation.
-
+The method {meth}`tskit.TreeSequence.samples` will give us these nodes,
+and {meth}`tskit.TreeSequence.diversity` computes genetic diversity for a given list
+of node IDs (*not* individual IDs!),
+so we can compute as follows:
 ```{code-cell}
 pop_nodes = [ts.samples(population=p, time=0) for p in range(ts.num_populations)]
 diversity = ts.diversity(pop_nodes[1:])
@@ -662,11 +739,11 @@ about an individual in the previous example:
 
 ```{code-cell}
 :tags: ["remove-output"]
-ind = ts.individual(0)
+ts.individual(0)
 ```
 ```{code-cell}
 :tags: ["remove-input"]
-util.pp(ind)
+util.pp(ts.individual(0))
 ```
 
 Some information is generic to individuals in tree sequences of any format:
@@ -689,19 +766,23 @@ produced by SLiM. This is described in more detail in the SLiM manual, but brief
 - ``flags`` holds additional information about the individual recorded by SLiM
   (currently, only whether the individual has migrated or not:
   see [](sec_constants_and_flags)).
-- the ``tag`` entries contain the correspondly-named "tags" in SLiM,
+- the ``tag`` entries contain the correspondingly-named "tags" in SLiM,
   and for the logical tags ``tagLX``, the ``tagLX_set`` records whether or not
   that tag was "set" (as opposed to remaining unset).
   The funny values in ``tag`` and ``tagF`` are those special values that SLiM uses to
   record that *those* entries were not set either.
 - the ``per_trait`` entry is a list of information, one for each trait in the simulation.
+  (There is always at least one trait:
+  even models that do not explicitly set up any traits
+  have a default trait set up by SLiM automatically.)
+
 
 We can use this metadata in many ways, for example, to create an age distribution by sex:
 
 ```{code-cell}
 import numpy as np
 max_age = max([ind.metadata["age"] for ind in ts.individuals()])
-age_table = np.zeros((max_age + 1, 2))
+age_table = np.zeros((max_age + 1, 2), dtype='int')
 age_labels = { pyslim.INDIVIDUAL_TYPE_FEMALE: 'females',
                pyslim.INDIVIDUAL_TYPE_MALE: 'males' }
 alive_indivs = pyslim.individuals_alive_at(ts, 0)
@@ -732,9 +813,10 @@ iterating over individuals as above. For example,
 suppose that we want to randomly sample 10 individuals alive and older than 2 time steps
 from each of the populations at the end of the simulation,
 and simplify the tree sequence to retain only those individuals.
-This can be done using the numpy arrays returned by {func}`.individual_ages`
-and `.individuals_population` as follows:
-
+Since `alive_indivs` (produced with {func}`.individuals_alive_at` above)
+and the output of {func}`.individual_ages` and `.individuals_population` 
+are arrays of length equal to the number of individuals,
+this can be done as follows:
 ```{code-cell}
 ages = pyslim.individual_ages(ts)
 adults = alive_indivs[ages[alive_indivs] > 2]
@@ -763,6 +845,7 @@ print(f"There are {sub_ts.num_mutations} mutations across {sub_ts.num_trees} dis
       f"with a mean overall genetic diversity of {sub_ts.diversity()}.")
 ```
 
+(sec_tutorial_vacant_nodes)=
 
 ## Vacant nodes
 
@@ -775,16 +858,19 @@ For instance, running an msprime simulation backwards from
 a tree sequence with vacant sample nodes
 (as in {numref}`figure {number} <pedigree_hap>` of the Overview)
 would also simulate ancestry of the vacant nodes.
-For this reason, {func}`.recapitate` removes these nodes
+For this reason, 
+you can remove the vacant nodes from the sample with {func}`.remove_vacant`.
+Similarly, {func}`.recapitate` removes these nodes
 from the sample before running msprime,
 which makes it so their ancestry will not be simulated.
 Similarly, at present {ref}`statistics in tskit<tskit:sec_stats>`
 do not account for missing data, so will return incorrect results
 if these vacant nodes are not removed from the sample.
 
-To be clear, the vacant nodes will still be present,
-just not marked as samples (i.e., with the ``tskit.NODE_IS_SAMPLE``
-flag removed from their node flags).
+To be clear, in the output from {func}`.recapitate` or {func}`.remove_vacant`
+the vacant nodes will still be present,
+just not marked as samples (i.e., the ``tskit.NODE_IS_SAMPLE``
+flag has been removed from their node flags).
 Once they are not part of the sample,
 they are essentially invisible to most operations.
 However, it is helpful to know that they are there.
@@ -793,9 +879,9 @@ They are kept because if you wish to read the tree sequence back into SLiM
 then you'll need them;
 they can put them back in the sample after being removed
 with {func}`.restore_vacant`.
-If you would like to remove the vacant nodes from the sample for
-other reasons, you can use {func}`.remove_vacant`.
 
+To find out which nodes in the tree sequence are vacant nodes,
+use {func}`.nodes_vacant`.
 
 ## Historical individuals
 
@@ -804,11 +890,10 @@ individuals and the ancestral nodes (genomes) required to reconstruct their gene
 relationships. But you might want more than that. For example, there may be individuals
 who are not alive any more, but whose complete ancestry you would like to know. Or
 perhaps you'd like to know how the final generation relates to particular individuals in
-the past. Or it may be that you want to access the spatial location of historical genomes
-(which, for technical reasons is linked to individuals, not to genomes). The solution is
-to *remember* an individual during the simulation, using the SLiM function
-``treeSeqRememberIndividuals()``. Individuals can be Remembered in two ways, as
-described below.
+the past. Or it may be that you want to access the spatial location of historical genomes.
+The solution is to *remember* an individual during the simulation,
+using the SLiM function ``treeSeqRememberIndividuals()``.
+Individuals can be Remembered in two ways, as described below.
 
 
 
@@ -844,11 +929,11 @@ individual in the [introductory example](sec_left_in_tree_sequence) is pictured 
 ### Retaining individuals
 
 Alternatively, you may want to avoid treating historical individuals and their genomes as
-actual samples, but temporarily *retain* them as long as they are still relevant to
-reconstructing the genetic ancestry of the sample nodes. This can save some computational
-burden, as not only will nodes and individuals be removed once they are no longer
-ancestral, but also the full ancestry of the retained individuals does not need to be
-kept. You can retain individuals in this way by using
+actual samples, but temporarily *retain* those individuals as long as they are still
+relevant to reconstructing the genetic ancestry of the sample nodes. This can save some
+computational burden, as not only will nodes and individuals be removed once they are no
+longer ancestral, but also the full ancestry of the retained individuals does not need to
+be kept. You can retain individuals in this way by using
 ``treeSeqRememberIndividuals(..., permanent=F)``.
 
 Since a retained individual's nodes are not marked as samples, they are subject to the
@@ -880,16 +965,19 @@ to show them.
 
 Although not needed to reconstruct full genomic history, it is perfectly possible to
 apply ``treeSeqRememberIndividuals()`` to every individual in every generation of a
-simulation (i.e. everyone who has ever lived). If you simply mark everyone for temporary
-retention, it should not increase the memory burden of your simulation much: most
+simulation (i.e. everyone who has ever lived). If you simply retain everyone
+(with `permanent=F`),
+it should not increase the memory burden of your simulation much: most
 individuals will be removed as the simulation progresses, since they will not contain
 coalescent nodes. However, if you use ``treeSeqInitialize(retainCoalescentOnly=F)``,
 the number of individuals in the resulting tree sequence is likely to become very large,
 and the efficiencies provided by tree sequence recording will be substantially reduced.
 Indeed in this case, retaining will be much the same as permanently remembering everyone
-who has ever lived. Nevertheless, if you are willing to sacrifice enough computer memory,
+who has ever lived. (It will retain all individuals who are genetic ancestors to the
+final generation, which is for a typical-length chromosome a substantial fraction of
+everyone who ever lived.)
+Nevertheless, if you are willing to sacrifice enough computer memory,
 either of these is (perhaps surprisingly) possible, even for medium-sized simulations.
-
 
 
 (sec_individual_flags)=
@@ -897,8 +985,8 @@ either of these is (perhaps surprisingly) possible, even for medium-sized simula
 ### Individual flags
 
 We have seen that an individual can appear in the tree sequence because it was
-Remembered, Retained, or alive at the end of the simulation (note these
-are not mutually exclusive). The ``Individual.flags`` value stores this information.
+Remembered or Retained, and/or alive at the end of the simulation.
+The ``Individual.flags`` value stores this information.
 For example, to count up the different individual types, we could do this:
 
 :::{todo}
@@ -931,7 +1019,9 @@ so these are no longer present, unless you specifically Remember them.
 :::
 
 
-## Generating intial diversity with msprime
+(sec_initial_diversity)=
+
+## Generating initial diversity with msprime
 
 Suppose now that we'd like to *start* a SLiM simulation
 with the result of a coalescent simulation.
@@ -956,7 +1046,7 @@ ts = msprime.sim_ancestry(
             recombination_rate=1e-8,
             sequence_length=1e6,
             random_seed=5)
-ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
+ts = pyslim.annotate(ts, model_type="nonWF", tick=1, stage="early")
 assert ts.num_individuals == 200
 assert ts.num_samples == 400
 ```
@@ -967,7 +1057,7 @@ SLiM will set the current time counter to 1.
 would not execute after loading the tree sequence.)
 
 We now have 200 diploids (so, 400 sampled nodes).
-Here's individual 199, which hsa SLiM metadata:
+Here's individual 199, which has SLiM metadata:
 ```{code-cell}
 :tags: ["remove-output"]
 ind = ts.individual(199)
@@ -992,10 +1082,12 @@ ts = pyslim.add_mutation_metadata(
                 ts, rate=1e-8,
                 model=msprime.SLiMMutationModel(type=0),
                 random_seed=9
-        )
+        ),
+        mutation_type=0,
 )
 ```
-The resulting mutations are in SLiM format.
+The resulting mutations are in SLiM format
+because we used {class}`msprime.SLiMMutationModel`
 Now, each `mutation` object in the tree sequence represents
 some number of SLiM mutations, whose SLiM IDs are stored in the `derived_state`.
 For instance, here's which SLiM mutation(s) the first mutation
@@ -1005,7 +1097,8 @@ ds = ts.mutation(0).derived_state
 print(f"SLiM IDs: {ds}")
 ```
 To see the information about these, we pull their information out
-using {func}`.mutation_metadata`, which provides a dictionary
+using {func}`.mutation_metadata`, which
+as above in [](sec_tutorial_mutation_metadata) provides a dictionary
 indexed by the SLiM IDs:
 ```{code-cell}
 :tags: ["remove-output"]
@@ -1018,9 +1111,6 @@ for sid in ds.split(","):
 for sid in ds.split(","):
     util.pp(mut_metadata[int(sid)])
 ```
-**Important:** the {func}`.mutation_metadata`-returned dictionary
-is indexed by **ints**, not strings, so be sure to convert your
-SLiM IDs to ints before looking them up!
 
 Finally, we write this out to a file that can be loaded in to SLiM:
 ```{code-cell}
@@ -1029,6 +1119,8 @@ ts.dump("initialize_nonWF.trees")
 
 Here's a minimal SLiM script that reads in the tree sequence file
 and runs it for a bit longer.
+We load the tree sequence in `early()`, matching the `stage`
+passed to {func}`annotate` above.
 
 ```{literalinclude} neutral_restart.slim
 ```
@@ -1108,7 +1200,7 @@ for k in range(3):
 
 Here's a script minimally modified from the above to be nucleotide-based:
 
-```{literalinclude} neutral_restart.slim
+```{literalinclude} neutral_nucleotide_restart.slim
 ```
 
 ```{code-cell}
@@ -1117,6 +1209,10 @@ Here's a script minimally modified from the above to be nucleotide-based:
 slim -s 123 neutral_nucleotide_restart.slim
 ```
 
+Everything runs reasonably.
+
+
+(sec_tutorial_selected_mutations)=
 
 ## Extracting information about selected mutations
 
@@ -1162,8 +1258,12 @@ for x in md:
     util.pp(x)
 ```
 
+The trait value is _not_ the same thing as fitness, because other things can affect fitness too – fitnessEffect() callbacks and individual/subpop fitnessScaling values, in particular.  So I think this distinction is important to be clear about.
+
 Since we haven't explicitly defined any traits in this simulation,
-the only trait is fitness, and the `effect_size` listed under `per_trait`
+the only trait is the default multiplicative trait implicitly defined by SLiM,
+which has a direct effect on fitness,
+and so the `effect_size` listed under `per_trait`
 for this mutation is simply its selection coefficient.
 Furthermore, `m.site` tells us the ID of the *site* on the genome that the mutation occurred at,
 and we can pull up information about that with the `ts.site( )` method:
@@ -1247,8 +1347,10 @@ so the resulting "derived state" is `'1994163,164833'`.
 Now that we understand how SLiM mutations are stored in a tree sequence,
 let's look at the allele frequencies.
 The allele frequency spectrum for *all* mutations can be obtained using the
-{meth}`tskit.TreeSequence.allele_frequency_spectrum` method,
-shown here for a sample of size 10 to make the output easy to see:
+{meth}`tskit.TreeSequence.allele_frequency_spectrum` method.
+(Note this is the frequency spectrum for the *tskit* mutations,
+rather than the SLiM mutations, which may differ because of stacking.)
+It is shown here for a sample of size 10 to make the output easy to see:
 
 ```{code-cell}
 samps = np.random.choice(ts.samples(), 10, replace=False)
@@ -1380,14 +1482,16 @@ Also known as "gotchas".
 
 1. If you use msprime to simulate a tree sequence, and then use that to initialize a SLiM simulation,
     you have to specify the same sequence length in both: as in the examples above,
-    the ``sequence_length`` argument to {func}`msprime.sim_ancestry` should be equal to the SLiM sequence length
+    the ``sequence_length`` argument to {func}`msprime.sim_ancestry` should be equal to the
+    `lastPosition` in SLiM
     *plus 1.0* (e.g., if the base positions in SLiM are 0 to 99, then there are 100 bases in all,
     so the sequence length should be 100).
 
 2. Make sure to distinguish *individuals* and *nodes*!
-   ``tskit`` "nodes" correspond to SLiM "genomes".
-   Individuals in SLiM are diploid, so normally, each has two nodes (but retained
-   individuals may have nodes removed by simplification: see below).
+   ``tskit`` "nodes" correspond to SLiM "haplosomes".
+   Individuals in SLiM normally each have two nodes, but retained
+   individuals may have nodes removed by simplification: see below,
+   and some nodes may be [vacant](sec_tutorial_vacant_nodes).
 
 3. As described above, the Individual table contains entries for
 

@@ -711,7 +711,7 @@ def slim_individual_metadata_schema(num_traits=1):
 
 def slim_node_metadata_schema(num_chromosomes=1):
     """
-    Unlike other schema, the node metadata schema depends on the number of
+    The node metadata schema depends on the number of
     chromosomes in a multichromosome simulation, and
     {data}`.slim_metadata_schemas`
     returns the schema for a single-chromosome simulation. This function
@@ -761,10 +761,14 @@ def default_slim_metadata(name, num_chromosomes=1, num_traits=1, **kwargs):
     "tree_sequence", "edge", "site", "mutation", "mutation_list_entry",
     "node", "individual", or "population".
 
-    Additional kwargs are used to update the resulting metadata
-    (without validity checking).
+    Additional keyword arguments may be passed in to modify the returned
+    metadata dictionary: for each such key=value pair the returned dictionary
+    has `value` (re)assigned to `key`.
 
     :param str name: The type of metadata requested.
+    :param int num_chromosomes: The number of chromosomes (only relevant for "node").
+    :param int num_traits: The number of traits
+        (only relevant for "individual" and "mutation_list_entry").
     :rtype dict:
     """
     if name == "tree_sequence":
@@ -1803,7 +1807,7 @@ def is_current_version(ts, _warn=False):
     or the metadata from one of these. The latter is useful because
     accessing top-level metadata can be a costly operation.
 
-    :param dict ts: Either the top-level metadata of a tree sequence,
+    :param ts: Either the top-level metadata of a tree sequence,
         or a TreeSequence or TableCollection that carries this metadata.
     :return bool: Whether the tree sequence is the current version.
     """

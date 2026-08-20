@@ -36,22 +36,23 @@ GENOME_TYPE_Y = 2
 #: A value used in individual metadata ("sex") to indicate the individual is a hermaphrodite.
 INDIVIDUAL_TYPE_HERMAPHRODITE = -1
 
-#: A value used in individual metadata ("sex") to indicate the individual is a male.
+#: A value used in individual metadata ("sex") to indicate the individual is a female.
 INDIVIDUAL_TYPE_FEMALE = 0
 
-#: A value used in individual metadata ("sex") to indicate the individual is a female.
+#: A value used in individual metadata ("sex") to indicate the individual is a male.
 INDIVIDUAL_TYPE_MALE = 1
 
 #: An individual flag indicating the individual is a migrant.
-INDIVIDUAL_FLAG_MIGRATED = np.uint32(1 << 1)
+INDIVIDUAL_FLAG_MIGRATED = np.uint32(1 << 0)
 
-#: This flag exists because SLiM expects certain vacant nodes (=haplosomes)
+#: This flag exists because SLiM expects certain vacant nodes
 #: to be marked as samples (those vacant nodes corresponding to alive individuals),
 #: but including these as samples causes problems for certain operations in tskit.
-#: So, if {meth}`.remove_vacant` is used to remove the 'sample' flags from those
+#: So, if :meth:`remove_vacant` is used to remove the 'sample' flags from those
 #: vacant nodes, this flag is applied so that the sample flag can be easily put back
-#: (by {meth}`.restore_vacant`). The flag does *not* mean simply that this is a
-#: vacant sample node (indeed, if this flag is set then the `tskit.NODE_IS_SAMPLE`
+#: (by :meth:`restore_vacant`). So, this flag means that this is is a vacant node
+#: that SLiM will expect to be a sample but is not currently marked as a sample
+#: (in particular, if this flag is set then the :data:`tskit.NODE_IS_SAMPLE`
 #: flag is not expected to be set).
 NODE_IS_VACANT_SAMPLE = np.uint32(1 << 16)
 

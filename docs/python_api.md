@@ -37,25 +37,25 @@ Here is a quick reference to some of the methods:
 ```{eval-rst}
 .. autosummary::
 
-  recapitate
-  mutation_metadata
-  annotate
-  individuals_alive_at
-  individual_ages
-  individual_ages_at
-  remove_vacant
-  restore_vacant
-  has_vacant_samples
-  node_is_vacant
-  slim_time
-  next_slim_mutation_id
   add_mutation_metadata
   add_mutation_metadata_tables
+  annotate
   convert_alleles
-  generate_nucleotides
-  population_size
-  set_slim_state
   default_slim_metadata
+  generate_nucleotides
+  has_vacant_samples
+  individual_ages
+  individual_ages_at
+  individuals_alive_at
+  mutation_metadata
+  next_slim_mutation_id
+  nodes_vacant
+  population_size
+  recapitate
+  remove_vacant
+  restore_vacant
+  set_slim_state
+  slim_time
   update
 ```
 

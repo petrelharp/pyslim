@@ -3,7 +3,7 @@
 
 title: PySLiM manual
 author: Tskit Developers
-copyright: "2021"
+copyright: "2026"
 only_build_toc_files: true
 # logo: logo.png
 favicon: favicon.ico
@@ -55,3 +55,4 @@ sphinx:
       myst_enable_extensions:
       - colon_fence
       - deflist
+      nb_merge_streams: True

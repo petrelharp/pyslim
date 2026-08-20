@@ -67,9 +67,9 @@ def _average_time_alive(birth_times, death_times, t0, t1):
 def population_size(ts, x_bins, y_bins, time_bins, stage="late", remembered_stage=None):
     """
     Calculates the population size in each of the spatial bins defined by grid lines
-    at ``x_bins`` and ``y_bins``, averaged over each of the time intervals separated by
-    ``time_bins``. To obtain actual (census) sizes, the tree sequence must contain
-    all individuals alive, e.g., from a SLiM simulation with all individuals
+    at ``x_bins`` and ``y_bins``, averaged over each of the ticks in the time intervals
+    separated by ``time_bins``. To obtain actual (census) sizes, the tree sequence must
+    contain all individuals alive, e.g., from a SLiM simulation with all individuals
     permanently remembered.
 
     With ``nx``, ``ny`` and ``nt`` the number of bins in the ``x``, ``y`` and time directions

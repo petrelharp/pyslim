@@ -16,7 +16,7 @@ kernelspec:
 # Overview
 
 A tree sequence is a way of storing both the full genetic history and the genotypes
-of a bunch of genomes.
+of a potentially large collection of genome sequences.
 See {ref}`the tskit documentation<tskit:sec_introduction>`
 for more description of the tree sequence and underlying data structure,
 and definitions of the important terms.
@@ -25,10 +25,10 @@ and the "focal" nodes are called *sample nodes* or simply *samples*.
 Many operations on tree sequences act on the sample nodes by default (see the
 {ref}`tskit data model<tskit:sec_nodes_or_individuals>`
 for more on this topic), and the tree sequence always describes the genealogy of the
-entire genome of all the samples, at at least over the simulated time period.
+entire genome of all the samples, at least over the simulated time period.
 (Other nodes in the tree sequence represent ancestral genomes
 about which we might have only partial information).
-SLiM simulates diploid organisms, so each *individual* usually has two nodes;
+For simulated diploid organisms, each *individual* has two nodes, so
 many operations you might want to do involve first finding the individuals you want,
 and then looking at their nodes.
 
@@ -39,8 +39,10 @@ and then looking at their nodes.
 Suppose we've run a very small simulation with SLiM. The genetic relationships between
 the various diploid individuals who were alive over the course of the simulation might
 look something like the picture on the left below. Note that individuals (circles) are
-diploid, so that each contains two chromosomes or *nodes* (shaded rectangles),
+diploid, so that each contains two copies of the chromosome or *nodes* (shaded rectangles),
 and that relationships are between the *nodes*, not the individuals.
+(The term SLiM uses for each of these copies-of-chromosomes is "haplosome",
+a term we'll continue to use below.)
 
 At the end of the simulation we are typically only interested in the genetic
 relationships between the nodes in those individuals which are still alive;
@@ -57,7 +59,10 @@ name: pedigree01
 ---
 A conceptual diagram of
 **(A)** relationships between chromosomes of diploid individuals in a SLiM simulation, and
-**(B)** which information is returned in the tree sequence.
+**(B)** which information is retained in the tree sequence.
+Only pedigree relationships are shown, not genetic relationships:
+the diagram does not show which portions of genetic material were inherited
+along each relationship.
 ```
 
 (sec_left_in_tree_sequence)=
@@ -90,18 +95,25 @@ which individuals they were in (the tutorial explains ways to
 [retain this information](sec_retaining_individuals).
 
 As well as the historical individuals, many historical *nodes*  have been removed too,
-along with with their genealogical relationships (i.e. the lines, which in
+along with with their genealogical relationships (i.e., the lines, which in
 tree-sequence-speak are known as "edges"). The deleted nodes are simply those that are
 not needed to reconstruct the relationships between the sample nodes. For example, we
-remove nodes leading to a dead end (e.g. in individuals who had no offspring). Similarly,
-as time goes on, recombination events in conjunction with genetic drift can gradually
-reduce the genetic contribution of parts of older genomes to the current generation.
+remove nodes leading to a dead end (e.g., in individuals who had no offspring).
+Similarly, as time goes on, recombination events in conjunction with genetic drift can
+gradually reduce the genetic contribution of parts of older genomes to the current
+generation.
 The generated tree sequence therefore need not contain historical nodes whose genetic
-contribution to the samples has been whittled down to zero. Finally, to
-reconstruct relationships between samples, strictly we only need to keep a node if it
-represents the genetic *most recent common ancestor* (MRCA) of at least two samples. So
-by default, we also remove historical nodes that are only "on the line to" a sample, but
-do not represent a branching point (i.e. coalescent event) on the tree.
+contribution to the samples has been whittled down to zero.
+Finally, to reconstruct relationships between samples, we only need to keep a node if it
+represents the genetic *most recent common ancestor* (MRCA) of at least two samples
+at some point on the genome.
+We will also need to keep nodes in the founding generation
+to describe relationships of the samples to this initial time.
+So by default, SLiM also removes historical nodes that are only "on the line to" a sample,
+but do not represent a either a branching point (i.e. coalescent event) or a root
+of a the marginal tree describing genetic relationships at some point on the genome.
+(See [Kelleher et al 2018](https://doi.org/10.1371/journal.pcbi.1006581)
+for a description of what relationships, exactly, are retained.)
 
 
 ## What else can I find out from the tree sequence?
@@ -115,9 +127,8 @@ Most of this is stored as *metadata*: see [](sec_metadata).
 
 ## Vacant nodes: sex chromosomes and haploidy
 
-Under the hood in SLiM, all individuals are diploid,
-and so for each individual there are two *nodes*,
-representing their two haplosomes
+Under the hood, SLiM reserves two *nodes* for each individual
+to represent their haplosomes
 (i.e., chromosome copies; see the SLiM manual).
 So, any individual that is *not* diploid for whichever chromosome
 the tree sequence represents will have in the tree sequence
@@ -166,9 +177,10 @@ in all the tree sequences in a trees archive are identical.
 This is quite handy if you're going to analyze data from more than one chromosome,
 but also creates some potential pitfalls.
 
-First, there will probably be nodes in the tree sequence
-that are not represented in *any* of the trees.
-This is simply because these are nodes that are needed for other chromosomes:
+First, in one particular tree sequence of a trees archive,
+there will probably be nodes that are not represented in *any* of the trees.
+This is simply because these are nodes that are referenced by
+the tree sequence for other chromosomes:
 perhaps the node in question is not ancestral to any of the samples
 on this chromosome, but it is on other chromosomes.
 The presence of these nodes is harmless, however: it will not affect
@@ -193,7 +205,7 @@ if both were from the same multichromosome simulation,
 and vice-versa.
 
 Finally, this explains why vacant nodes must be included in the tree sequence:
-in the presence of autosomes, every diploid individual needs two nodes,
+in the presence of diploid autosomes, every diploid individual is allocated two nodes,
 but for an individual that has less than two copies of a given chromosome,
 some of those nodes will not represent an actual chromosome copy.
 Those are "vacant", as described above.

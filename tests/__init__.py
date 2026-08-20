@@ -20,8 +20,9 @@ class PyslimTestCase:
     Base class for test cases in pyslim.
     """
 
-    def assert_indiv_metadata_equal(self, a, b):
-        # individual metadata can have nan's in it, thus this function
+    def assert_trait_metadata_equal(self, a, b):
+        # individual and mutation metadata can have nan's in it,
+        # thus this function
         assert isinstance(a, dict)
         assert type(a) == type(b)
         assert a.keys() == b.keys()
@@ -34,7 +35,7 @@ class PyslimTestCase:
         for x, y in zip(apt, bpt):
             assert x.keys() == y.keys()
             for k in x:
-                if k == "phenotype":
+                if k == "phenotype" or k == "dominance":
                     assert (np.isnan(x[k]) and np.isnan(y[k])) or (x[k] == y[k])
                 else:
                     assert x[k] == y[k]
@@ -102,7 +103,7 @@ class PyslimTestCase:
             assert n1.metadata == n2.metadata
             i1 = ts1.individual(n1.individual)
             i2 = ts2.individual(n2.individual)
-            self.assert_indiv_metadata_equal(i1.metadata, i2.metadata)
+            self.assert_trait_metadata_equal(i1.metadata, i2.metadata)
         for _ in range(10):
             pos = random.uniform(0, ts1.sequence_length)
             t1 = ts1.at(pos)

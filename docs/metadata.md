@@ -66,13 +66,13 @@ and `ts.metadata["SLiM"]` contains information about the simulation:
 - `traits`: a list of information for each of the traits:
     * `index`: the index of the trait in SLiM
     * `name`: the name in SLiM for the trait
-    * `type`: additive, multiplicative, or logistic
+    * `type`: `"additive"`, `"multiplicative"`, or `"logistic"`
     * `baselineOffsetFromUser`: a value added to all traits
     * `baselineOffsetFromSubstitutions`: the total effect of all substitutions on the traits
       at the time the tree sequence was saved
     * `baselineAccumulation`: whether the effect of substitutions accumulate in that value
     * `directFitnessEffect`: whether the trait has a direct effect on fitness
-    * `individualOffsetMean`, `individualOffsetSD`: parameters governing the individual-level offsets
+    * `individualOffsetMean`, `individualOffsetSD`: parameters governing the distribution of individual-level offsets
       (i.e., "environment" effects)
 
 **Populations:**
@@ -83,7 +83,7 @@ in a nonspatial simulation). The metadata may be `None` for populations
 that SLiM did not use. The keys that SLiM uses are:
 
 - `slim_id`: the ID of this population in SLiM
-- `name`: the name of the population (by default, `p0`, `p1`, etcetera)
+- `name`: the name of the population (by default, `"p0"`, `"p1"`, etcetera)
 - `description`: a string describing the population
 - `selfing_fraction`, `female_cloning_fraction`, `male_cloning_fraction`, and `sex_ratio`: only present when applicable (e.g., in WF simulations)
 - `bounds_x0`, `bounds_x1`, `bounds_y0`, `bounds_y1`, `bounds_z0`, and `bounds_z1`: the spatial bounds, when applicable
@@ -95,7 +95,7 @@ Each individual produced by SLiM contains the following metadata:
 - `pedigree_id`: the "pedigree ID", unique within the SLiM simulation
 - `pedigree_p1`, `pedigree_p2`: the pedigree IDs of the individuals' two
   parents (they may be equal in the case of selfing, or `-1` to indicate no
-  parent, in the case of the initial generation or for cloning)
+  parent, in the case of the initial generation)
 - `age`: the `.age` property within SLiM at the time the file was written out
 - `subpopulation`: the subpopulation within SLiM the individual was in at the time the file was written out
 - `sex`: the sex of the individual (either {data}`.INDIVIDUAL_TYPE_FEMALE`, {data}`.INDIVIDUAL_TYPE_MALE`, or {data}`.INDIVIDUAL_TYPE_HERMAPHRODITE`)
@@ -106,21 +106,21 @@ Each individual produced by SLiM contains the following metadata:
   the purpose of `tagLX_set` is to record whether the tag has been set in the simulation
 - `per_trait`: a list of information about the trait values for this individual; these are in the same order
   as the traits listed in top-level metadata;
-    * `phenotype`: the trait value
+    * `phenotype`: the trait value (which is `NAN` if the phenotype has not been calculated, or was invalidated)
     * `offset`: the individual's offset (i.e., the "environmental effect")
 
 **Nodes:**
-Each "node" produced by SLiM (i.e., "genome" within SLiM) has:
+Each "node" produced by SLiM (i.e., "haplosome" within SLiM) has:
 
-- `slim_id`: the unique ID associated with the genome by SLiM
-- `is_vacant`: records the genome is a "vacant" genome (in which case it isn't
+- `slim_id`: the unique ID associated with the haplosome by SLiM
+- `is_vacant`: records that the node is a "vacant" node (in which case it isn't
   really there, so shouldn't have any mutations or relationships in the tree
   sequence!) - see [](sec_overview_vacant_nodes) for more explanation
 
 **Mutations:**
 Prior to SLiM 6.0, mutation metadata was associated with the tskit mutation objects.
 Now, this is stored in top-level metadata, under ``ts.metadata["SLiM_mutation_list"]``.
-Each entry
+Each entry contains:
 
 - `mutation_id`: the numeric ID of mutation in SLiM
 - `mutation_type`: the numeric ID of the `MutationType` within SLiM
@@ -231,8 +231,10 @@ md["SLiM"]["model_type"] = "nonWF"
 tables.metadata = md
 ```
 Modifying the top-level metadata
-could be used to set spatial bounds on an annotated msprime simulation, for instance.
-(This is recorded in the population metadata.)
+could be used to declare that an annotated msprime simulation
+is to be a spatial simulation in SLiM,
+by changing the "dimensionality" property in top-level metadata
+(and perhaps also the bounds in population metadata as well).
 
 
 ### Modifying SLiM metadata in tables
@@ -254,7 +256,7 @@ tables.individuals.clear()
 for ind in ts.individuals():
     md = ind.metadata
     md["age"] = random.choice([1,2,3,4])
-    _ = tables.individuals.append(
+    tables.individuals.append(
         ind.replace(metadata=md)
     )
 
@@ -273,8 +275,11 @@ mod_ts.dump("modified_ts.trees")
 
 ### Metadata entries
 
-SLiM records additional information in the metadata columns of Individual, Node, and Mutation tables,
+SLiM records additional information in the metadata columns of Individual and Node, and Mutation tables,
+and about mutations in top-level metadata,
 in a binary format using the python ``struct`` module.
+However, this is transparently taken care of by tskit's metadata module,
+so the user does not have to work directly with binary information or the struct module itself.
 See {ref}`tskit's metadata documentation <tskit:sec_metadata>`
 for details on how this works.
 Nothing besides this binary information can be stored in the metadata of these tables if the tree sequence is to be used by SLiM,

@@ -26,20 +26,32 @@ ts = tskit.load("example_sim.trees")
 .. currentmodule:: pyslim
 ```
 
+(sec_time_units)=
+
 # Time units
 
 There are a number of subtle ways that time units can trip up the user;
 below are explanations of how to deal with most of these topics.
 At issue is the fact that tree sequences produced by SLiM
 have times in units of "ticks", rather than generations. 
-If we query such a tree sequence for its time units we see 
-its return value
+Sometimes these are the same, and sometimes they are not.
+
+SLiM sets the `time_unit` property of a tree sequence by default to "ticks":
 ```{code-cell}
 ts.time_units
 ```
+This "time unit" can be set with ``initializeTreeSeq(timeUnit="generations");``,
+but you should only do this if in fact you are sure that one tick = one generation
+(e.g., in a WF model),
+and SLiM does no checking whether this is true.
+This tutorial is not about this label, it is about matching up population genetics quantities
+(which are often in units of generations)
+with the ticks of SLiM time (which is more like calendar time).
 
-In general this mean it can be conceptually tricky to make sure that time units
+In general it can be conceptually tricky to make sure that time units
 are consistent across different stages of simulation.
+
+(sec_time_units_warning)=
 
 ## That warning from recapitate about time units
 
@@ -58,6 +70,7 @@ However, this *only* affects the *label* in metadata (i.e., the output of
 in the tree sequence, so please only do this if you are running a WF simulation
 (and, keep reading).
 
+(sec_time_units_mutation_rates)=
 
 ## Mutation rates with msprime
 
@@ -202,7 +215,7 @@ and then take the average across all individuals alive at a given time.
 (This is only one possible choice,
 and other choices are usually but not always equivalent,
 but a discussion of the options and distinctions
-would make this tutorial lengthy and confusing.
+would make this tutorial lengthy and confusing.)
 
 Here is a script that computes this.
 In the simulation, females' fecundity increases with their age,
