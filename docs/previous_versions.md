@@ -51,7 +51,6 @@ In particular:
 {func}`.add_mutation_metadata` after generating mutations to add the
 information about these that SLiM expects to top-level metadata.
 For instance:
-
 ```{code-cell}
 next_id = pyslim.next_slim_mutation_id(ts)
 ts = pyslim.add_mutation_metadata(
@@ -74,16 +73,13 @@ In brief, if `mut` is a mutation, then you should replace
 with `mut_metadata[int(mut.derived_state.split(",")[j])]`,
 where `mut_metadata` is the output of {func}`.mutation_metadata`.
 For instance, where before you might have done:
-
 ```python
 mut = ts.mutation(0)
 for k, md in zip(mut.derived_state.split(","), mut.metadata["mutation_list"]):
     print(f"SLiM ID: {k}")
     print(f"Metadata: {md}")
 ```
-
 Now, you would do:
-
 ```{code-cell}
 mut_metadata = pyslim.mutation_metadata(ts)
 mut = ts.mutation(0)
@@ -92,7 +88,6 @@ for k in mut.derived_state.split(","):
     print(f"SLiM ID: {k}")
     print(f"Metadata: {md}")
 ```
-
 The function {func}`.mutation_metadata` pulls information out of
 `ts.metadata["SLiM_mutation_list"]`. It is useful for two reasons:
 first, it puts the information into a dict, so you can look up information

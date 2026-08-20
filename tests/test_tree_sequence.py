@@ -59,11 +59,11 @@ def verify_mutation_metadata(ts):
     # Verify that all derived states are properly accounted for
     # in mutation metadata.
     mdl = ts.metadata["SLiM_mutation_list"]
-    mut_info = {str(mut["mutation_id"]): mut for mut in mdl}
+    mut_info = pyslim.mutation_metadata(ts)
     assert len(mut_info) == len(mdl)
     for mut in ts.mutations():
         for j in mut.derived_state.split(","):
-            assert j in mut_info
+            assert int(j) in mut_info
 
 
 class TestMutationMetadata(tests.PyslimTestCase):
@@ -80,6 +80,16 @@ class TestMutationMetadata(tests.PyslimTestCase):
         # test that mutation metadata is properly present
         for _, ts in recipe["ts"].items():
             verify_mutation_metadata(ts)
+
+    @pytest.mark.parametrize("recipe", recipe_eq("traits"), indirect=True)
+    def test_mutation_metadata_extra_arg(self, recipe):
+        for _, ts in recipe["ts"].items():
+            md1 = pyslim.mutation_metadata(ts)
+            md2 = pyslim.mutation_metadata(ts, ts_metadata=ts.metadata)
+            assert len(md1) == len(md2)
+            for x in md1:
+                assert x in md2
+                self.assert_trait_metadata_equal(md1[x], md2[x])
 
     @pytest.mark.parametrize("recipe", [next(recipe_eq())], indirect=True)
     def test_check(self, recipe):
@@ -329,7 +339,7 @@ class TestRecapitate(tests.PyslimTestCase):
     @pytest.mark.parametrize("recipe", recipe_eq(exclude="no_simplify"), indirect=True)
     def test_recapitation(self, recipe):
         for _, ts in recipe["ts"].items():
-            recomb_rate = 1.0 / ts.sequence_length
+            recomb_rate = 0.1 / ts.sequence_length
             recap = self.do_recapitate(
                 ts, recombination_rate=recomb_rate, ancestral_Ne=10, random_seed=5
             )
@@ -1420,6 +1430,7 @@ class TestVacancy(tests.PyslimTestCase):
             chrom_type = ts.metadata["SLiM"]["this_chromosome"]["type"]
             if chrom_type != "A":
                 assert pyslim.has_vacant_samples(ts)
+                assert pyslim.has_vacant_samples(ts, ts.metadata)
 
     def test_has_vacant_msprime(self):
         ts = msprime.sim_ancestry(
@@ -1471,6 +1482,11 @@ class TestVacancy(tests.PyslimTestCase):
             rts = pyslim.remove_vacant(ts)
             self.verify_remove_vacant(ts, rts)
             rrts = pyslim.restore_vacant(rts)
+            self.verify_restore_vacant(ts, rrts)
+            # with metadata explicitly
+            rts = pyslim.remove_vacant(ts, ts.metadata)
+            self.verify_remove_vacant(ts, rts)
+            rrts = pyslim.restore_vacant(rts, rts.metadata)
             self.verify_restore_vacant(ts, rrts)
 
     def test_recapitate_keeps_vacant(self, recipe):

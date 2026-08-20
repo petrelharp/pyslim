@@ -271,7 +271,7 @@ class TestAnnotate(tests.PyslimTestCase):
             md = i.metadata
             rmd = ri.metadata
             md["subpopulation"] = fwd_map[md["subpopulation"]]
-            self.assert_indiv_metadata_equal(md, rmd)
+            self.assert_trait_metadata_equal(md, rmd)
 
     def test_annotate_errors(self, helper_functions):
         for ts in helper_functions.get_msprime_examples():

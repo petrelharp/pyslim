@@ -40,6 +40,10 @@
   may have affected users using `pyslim.convert(ts)` in a previous version of pyslim
   on a tree sequence `ts` with SLiM file version prior to 0.9.
 
+- Since verison 1.1, the value of `pyslim.INDIVIDUAL_FLAG_MIGRATED` has been 2,
+  when in fact it should have been 1, so code using this flag to detect
+  migrants would have been wrong (and should have found no migrants, ever).
+
 **New features**:
 
 - SLiM now includes in metadata information about the effects of mutations on

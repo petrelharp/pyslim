@@ -38,4 +38,4 @@ If you find a bug in ``pyslim`` or want to suggest an improvement, please
 If you have a question about using tree sequences,
 please ask it at [the tskit discussion page](https://github.com/tskit-dev/tskit/discussions).
 Finally, questions about SLiM should be directed to
-[the SLiM mailing list](https://groups.google.com/forum/#!forum/slim-discuss).
+[the slim-discuss mailing list](https://groups.google.com/forum/#!forum/slim-discuss).

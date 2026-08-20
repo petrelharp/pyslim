@@ -90,17 +90,19 @@ def _is_chrom_vacant(k, b):
     return (b >> i & 1) > 0
 
 
-def has_vacant_samples(ts, _ts_metadata=None):
+def has_vacant_samples(ts, ts_metadata=None):
     """
     Returns whether the tree sequence has vacant sample nodes.
-    See :meth:`remove_vacant`.
+    See :func:`remove_vacant`.
 
     :param tskit.TreeSequence ts: The tree sequence.
+    :param dict ts_metadata: Optionally, the top-level metadata for ``ts``. If
+        this does not match the actual top-level metadata, incorrect values may result.
     """
-    if _ts_metadata is None:
-        _ts_metadata = ts.metadata
+    if ts_metadata is None:
+        ts_metadata = ts.metadata
     out = False
-    k = _chromosome_index(_ts_metadata)
+    k = _chromosome_index(ts_metadata)
     for n in ts.samples():
         md = ts.node(n).metadata
         if md is not None:
@@ -118,7 +120,7 @@ def nodes_vacant(ts):
     placeholder in SLiM: either a "null haplosome" (used as placeholders for
     sex chromosomes and other chromosome types not of consistent ploidy in all
     individuals) or simply an unused node for haploid chromosome types. See
-    :meth:`remove_vacant`.
+    :func:`remove_vacant`.
 
 
     :param tskit.TreeSequence ts: The tree sequence.
@@ -153,7 +155,7 @@ def node_is_vacant(ts, node):
     recorded by SLiM. A vacant node represents a blank placeholder in SLiM:
     either a "null haplosome" (used as placeholders for sex chromosomes and other
     chromosome types not of consistent ploidy in all individuals) or simply an
-    unused node for haploid chromosome types. See :meth:`remove_vacant`.
+    unused node for haploid chromosome types. See :func:`remove_vacant`.
 
     :param tskit.TreeSequence ts: The tree sequence.
     :param tskit.Node node: The node object.
@@ -173,7 +175,7 @@ def node_is_vacant(ts, node):
 def _record_vacant_tables(tables, ts_metadata):
     """
     Sets the NODE_IS_VACANT_SAMPLE flag for all vacant, sample nodes.
-    See :meth:`remove_vacant`.
+    See :func:`remove_vacant`.
 
     :param tskit.TableCollection tables: The table collection.
     """
@@ -204,7 +206,7 @@ def _remove_vacant_sample_flags(tables):
     tables.nodes.set_columns(**dn)
 
 
-def remove_vacant(ts, _ts_metadata=None):
+def remove_vacant(ts, ts_metadata=None):
     """
     Remove sample flags from all vacant nodes.
 
@@ -217,62 +219,74 @@ def remove_vacant(ts, _ts_metadata=None):
 
     This method returns a copy of the tree sequence for which all vacant nodes
     have the sample flag removed; these nodes will thus not affect
-    :meth:`recapitate`, tree sequence statistics, etc. This also sets
+    :func:`recapitate`, tree sequence statistics, etc. This also sets
     the :data:`NODE_IS_VACANT_SAMPLE` flag on these nodes,
-    so they can be restored with :meth:`restore_vacant`.  You probably don't
+    so they can be restored with :func:`restore_vacant`.  You probably don't
     want to run this method again on the output, since these flags will be
-    overwritten and :meth:`restore_vacant` will no longer work as expected.
+    overwritten and :func:`restore_vacant` will no longer work as expected.
 
     :param tskit.TreeSequence ts: The tree sequence.
+    :return tskit.TreeSequence: A copy of the tree sequence with vacant nodes
+        not marked as samples.
+    :param dict ts_metadata: Optionally, the top-level metadata for ``ts``. If
+        this does not match the actual top-level metadata, incorrect values may result.
     """
-    if _ts_metadata is None:
-        _ts_metadata = ts.metadata
+    if ts_metadata is None:
+        ts_metadata = ts.metadata
     tables = ts.dump_tables()
-    remove_vacant_tables(tables, _ts_metadata)
+    remove_vacant_tables(tables, ts_metadata)
     return tables.tree_sequence()
 
 
-def remove_vacant_tables(tables, _ts_metadata=None):
+def remove_vacant_tables(tables, ts_metadata=None):
     """
-    Does the work of :meth:`remove_vacant`, modifying ``tables`` in place.
+    Does the work of :func:`remove_vacant`, modifying ``tables`` in place.
 
     :param tskit.TableCollection tables: The tables underlying a tree sequence.
+    :param dict ts_metadata: Optionally, the top-level metadata for ``ts``. If
+        this does not match the actual top-level metadata, incorrect values may result.
     """
-    if _ts_metadata is None:
-        _ts_metadata = tables.metadata
-    _record_vacant_tables(tables, _ts_metadata)
+    if ts_metadata is None:
+        ts_metadata = tables.metadata
+    _record_vacant_tables(tables, ts_metadata)
     is_vacant = np.where(tables.nodes.flags & NODE_IS_VACANT_SAMPLE > 0)[0]
     _mark_not_samples(tables, is_vacant)
 
 
-def restore_vacant(ts, _ts_metadata=None):
+def restore_vacant(ts, ts_metadata=None):
     """
-    The inverse of :meth:`remove_vacant`.
+    The inverse of :func:`remove_vacant`.
 
     This method returns a copy of the tree sequence for which all nodes
     with the :data:`NODE_IS_VACANT_SAMPLE` flag set have their sample flags
-    set also. If these nodes are not vacant, an error will be raised.  This is
-    intended to be an inverse of :meth:`remove_vacant`.
+    set also and the :data:`NODE_IS_VACANT_SAMPLE` removed. If these nodes
+    are not vacant, an error will be raised.
 
     :param tskit.TreeSequence ts: The tree sequence.
+    :return tskit.TreeSequence: A copy of the tree sequence with vacant nodes
+        marked as samples.
+    :param dict ts_metadata: Optionally, the top-level metadata for ``ts``. If
+        this does not match the actual top-level metadata, incorrect values may result.
     """
-    if _ts_metadata is None:
-        _ts_metadata = ts.metadata
+    if ts_metadata is None:
+        ts_metadata = ts.metadata
     tables = ts.dump_tables()
-    restore_vacant_tables(tables, _ts_metadata)
+    restore_vacant_tables(tables, ts_metadata)
     return tables.tree_sequence()
 
 
-def restore_vacant_tables(tables, _ts_metadata=None):
+def restore_vacant_tables(tables, ts_metadata=None):
     """
-    Does the work of :meth:`restore_vacant`, modifying ``tables`` in place.
+    Does the work of :func:`restore_vacant`, modifying ``tables`` in place.
 
     :param tskit.TableCollection tables: The tables underlying a tree sequence.
+    :param dict ts_metadata: Optionally, the top-level metadata for ``ts``. If
+        this does not match the actual top-level metadata, incorrect values may result.
     """
-    if _ts_metadata is None:
-        _ts_metadata = tables.metadata
+    if ts_metadata is None:
+        ts_metadata = tables.metadata
     is_vacant = np.where(tables.nodes.flags & NODE_IS_VACANT_SAMPLE > 0)[0]
-    k = _chromosome_index(_ts_metadata)
+    k = _chromosome_index(ts_metadata)
     for j in is_vacant:
         n = tables.nodes[j]
         if n.metadata is None:
@@ -317,9 +331,15 @@ def recapitate(ts, ancestral_Ne=None, *, keep_vacant=False, **kwargs):
     provided, there will be *no* recombination.
 
     Sample flags from vacant nodes will be removed before recapitating:
-    see :meth:`remove_vacant`. To restore these, use ``keep_vacant=True``.
+    see :func:`remove_vacant`. To restore these, use ``keep_vacant=True``.
     You only need to do this if some individuals are not diploid and
     you will be loading the tree sequence back into SLiM.
+
+    Precisely, this function will: (1) :func:`.remove_vacant` nodes, if any;
+    (2) create a demography in which all populations split from
+    a new population called "ancestral" of the desired size;
+    (3) simulate with :func:`msprime.sim_ancestry`; and
+    (4) :func:`.restore_vacant` nodes, if any.
 
     :param tskit.TreeSequence ts: The tree sequence to transform.
     :param float ancestral_Ne: If specified, then will simulate from a single
@@ -328,6 +348,8 @@ def recapitate(ts, ancestral_Ne=None, *, keep_vacant=False, **kwargs):
     :param bool keep_vacant: Whether to restore the sample flags on any
         vacant sample nodes. Default: False.
     :param dict kwargs: Any other arguments to :func:`msprime.sim_ancestry`.
+    :return tskit.TreeSequence: A copy of the tree sequence with additional ancestral
+        history added.
     """
     ts_metadata = ts.metadata
     is_current_version(ts_metadata, _warn=True)
@@ -403,7 +425,11 @@ def recapitate(ts, ancestral_Ne=None, *, keep_vacant=False, **kwargs):
 def add_mutation_metadata(ts, mutation_type=0, remove_unused=False):
     """
     Returns a new tree sequence with default information added to the top-level metadata
-    for each mutation in the tree sequence for which that information is not already present.
+    for each mutation in the tree sequence that does not already have this information.
+    To do this, mutations must be in SLiM format, as for instance produced by
+    :class:`msprime.SLiMMutationModel`. Any information about SLiM mutations already
+    in top-level metadata will remain unchanged.
+
     To do this, this method looks for all SLiM IDs that are found in the derived
     state of some mutation but are not represented in the top-level metadata
     (see :func:`.mutation_metadata`). This function then adds entries to that top-level
@@ -416,6 +442,8 @@ def add_mutation_metadata(ts, mutation_type=0, remove_unused=False):
     :param int mutation_type: The numeric ID of the mutation type in SLiM.
     :param bool remove_unused: Whether to also remove from metadata information about any
         mutations not seen in the derived states of the tree sequence.
+    :return tskit.TreeSequence: A copy of the tree sequence with mutation information in
+        metadata.
     """
     tables = ts.dump_tables()
     add_mutation_metadata_tables(
@@ -426,8 +454,7 @@ def add_mutation_metadata(ts, mutation_type=0, remove_unused=False):
 
 def add_mutation_metadata_tables(tables, mutation_type=0, remove_unused=False):
     """
-    Modifies the tables in place to add metadata for any mutations for which it is missing;
-    see :func:`.add_mutation_metadata`.
+    Does the work of :func:`.add_mutation_metadata`, modifying ``tables`` in place.
 
     :param tskit.TableCollection tables: The table collection to be modified.
     :param int mutation_type: The numeric ID of the mutation type in SLiM.
@@ -486,7 +513,7 @@ def convert_alleles(ts):
     have "" (the empty string) for the ancestral state at each site; this method
     will replace this with the corresponding nucleotide from the reference sequence.
     For mutations, SLiM records the 'derived state' as a SLiM mutation ID; this
-    method will this with the nucleotide from the mutation's metadata.
+    method will replace this with the nucleotide from the mutation's metadata.
 
     This operation is not reversible: since SLiM mutation IDs are lost, the tree
     sequence will not be able to be read back into SLiM.
@@ -505,6 +532,8 @@ def convert_alleles(ts):
     generate these, see :func:`.generate_nucleotides`.
 
     :param tskit.TreeSequence ts: The tree sequence to transform.
+    :return tskit.TreeSequence: A copy of the tree sequence with modified
+        ancestral and derived states.
     """
     tables = ts.dump_tables()
     has_refseq = ts.has_reference_sequence() and len(ts.reference_sequence.data) > 0
@@ -577,6 +606,7 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
         or to randomly generate one.
     :param bool keep: Whether to leave existing nucleotides in mutations that already have one.
     :param int seed: The random seed for generating new alleles.
+    :return tskit.TreeSequence: A copy of the tree sequence with nucleotides.
     """
     rng = np.random.default_rng(seed=seed)
     if reference_sequence is None:
@@ -600,7 +630,7 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
                 "Reference sequence must be a string of A, C, G, and T only."
             )
     ts_metadata = ts.metadata
-    mut_info = mutation_metadata(ts, _ts_metadata=ts_metadata)
+    mut_info = mutation_metadata(ts, ts_metadata=ts_metadata)
     tables = ts.dump_tables()
     if reference_sequence is not None:
         tables.reference_sequence.data = reference_sequence
@@ -648,9 +678,13 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
 
 def individual_ages(ts, ts_metadata=None):
     """
-    Returns the ages of all individuals in the tree sequence, extracted
-    from metadata. The result is a array of length equal to the number of
+    Returns the ages of all individuals in the tree sequence, as extracted
+    from metadata. The result is an array of length equal to the number of
     individuals, with k-th entry equal to ``ts.individual(k).metadata["age"]``.
+
+    These are the ages of the indivdiuals when they were recorded in the tree sequence:
+    either when the tree sequence was saved (if they are alive) or when they were
+    last Remembered. See also :func:`.individual_ages_at`.
 
     :param tskit.TreeSequence ts: The tree sequence.
     :param dict ts_metadata: Optionally, the top-level metadata for ``ts``. If
@@ -687,11 +721,12 @@ def individuals_alive_at(
     while in nonWF models, birth occurs before "early()", so they are alive
     for both stages.
 
-    In both WF and nonWF models, mortality occurs between
+    In both the WF and nonWF life cycles, mortality occurs between
     "early()" and "late()", so that individuals are last alive during the
     "early()" stage of the time step of their final age, and if individuals
     are alive during "late()" they will also be alive during "first()" and
-    "early()" of the next time step. This means it is important to know during
+    "early()" of the next time step (unless the user calls `killIndividuals()`).
+    This means it is important to know during
     which stage individuals were Remembered - for instance, if the call to
     sim.treeSeqRememberIndividuals() was made during "early()" of a given time step,
     then those individuals might not have survived until "late()" of that
@@ -803,8 +838,9 @@ def individual_ages_at(
     This is computed as the time ago the individual was born (found by the
     `time` associated with the the individual's nodes) minus the `time`
     argument; while "death" is inferred from the individual's ``age``,
-    recorded in metadata. These values are the same as what would be shown
-    in SLiM during the corresponding time step and stage.
+    recorded in metadata (see :func:`.individual_ages`). These values should
+    be the same as what would be shown in SLiM during the corresponding time
+    step and stage.
 
     Since age increments at the end of each time step,
     the age is the number of time steps ends the individual has lived
@@ -843,8 +879,9 @@ def slim_time(ts, time, stage="late", ts_metadata=None):
     """
     Converts the given "tskit times" (i.e., in units of time before the end
     of the simulation) to SLiM times (those recorded by SLiM, usually in units
-    of ticks since the start of the simulation). Although the latter are
-    always integers, these will not be if the provided times are not integers.
+    of ticks since the start of the simulation). Although times in SLiM are
+    always integers, the returned values will not be integers if the values
+    in `time` are not.
 
     When the tree sequence is written out, SLiM records the current
     current tick in the metadata:
@@ -906,10 +943,16 @@ def _shift_times(ts, dt):
 
 def set_slim_state(ts, time=0, individuals=None):
     """
-    Changes the information stored in metadata so that when loaded into SLiM,
-    the current time will be ``time`` units ago (i.e., at tskit time ``time``)
+    Returns a new tree sequence for which
+    the information stored in metadata has been changed so that when loaded into
+    SLiM, the current time will be ``time`` units ago (i.e., at tskit time ``time``)
     and the alive individuals will be ``individuals``. The time in SLiM
     (i.e., the value of the tick counter) will also be ``time`` units earlier.
+
+    This is useful, for instance, if you Remember a set of individuals at some
+    point partway through a SLiM simulation, and would like to load *those*
+    individuals into SLiM, rather than the final generation. (These could be
+    used to start a new simulation, for instance.)
 
     Appropriate individuals might be found, for instance, with
     ``pyslim.individuals_alive_at(ts, time)``.
@@ -929,7 +972,8 @@ def set_slim_state(ts, time=0, individuals=None):
     the original simulation, but in the new simulation they die immediately,
     then the resulting tree sequence will still be valid but the history as
     recorded by SLiM in metadata will not make sense. To avoid such issues, one
-    can Remember and then kill the individuals to be later used in this way.
+    can in the original SLiM script Remember and then immediately kill the
+    individuals to be later used in this way.
 
     This also subtracts ``time`` from the value of "cycle" in top-level
     metadata; if this is not desired (or the value in "tick" needs to be
@@ -941,6 +985,7 @@ def set_slim_state(ts, time=0, individuals=None):
     :param numpy.ndarray individuals: An array of the tskit IDs of the individuals
         that should be marked as alive (all others will be not alive).
         (Default: leave unchanged.)
+    :return tskit.TreeSequence: A copy of the tree sequence, modified.
     """
     tables = _shift_times(ts, -time)
     if time != 0:
@@ -1069,7 +1114,15 @@ def has_individual_parents(ts):
     return _do_individual_parents_stuff(ts, return_parents=False)
 
 
-def annotate(ts, **kwargs):
+def annotate(
+    ts,
+    model_type,
+    tick,
+    cycle=None,
+    stage="early",
+    reference_sequence=None,
+    annotate_mutations=True,
+):
     """
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
@@ -1089,7 +1142,15 @@ def annotate(ts, **kwargs):
         with defaults. (If False, information about mutations is unchanged.)
     """
     tables = ts.dump_tables()
-    annotate_tables(tables, **kwargs)
+    annotate_tables(
+        tables,
+        model_type=model_type,
+        tick=tick,
+        cycle=cycle,
+        stage=stage,
+        reference_sequence=reference_sequence,
+        annotate_mutations=annotate_mutations,
+    )
     return tables.tree_sequence()
 
 
@@ -1146,7 +1207,7 @@ def annotate_tables(
 
 def next_slim_mutation_id(ts):
     """
-    Returns the next SLiM mutation ID for this tree sequence. This is useful
+    Returns the next unused SLiM mutation ID for this tree sequence. This is useful
     because if you want to add more mutations to your SLiM tree sequence using
     :func:`msprime.sim_mutations`, you may need to specify the parameter
     `next_id` in your :class:`msprime.SLiMMutationModel` to be larger than any
