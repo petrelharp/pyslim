@@ -29,6 +29,7 @@ initialize()
 
 20 early() {
     catn("Done.");
+    sim.demandPhenotype(NULL);
     sim.treeSeqOutput(TREES_FILE, simplify=F);
     sim.simulationFinished();
 }

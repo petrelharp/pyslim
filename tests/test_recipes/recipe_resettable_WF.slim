@@ -22,6 +22,7 @@ initialize()
 }
 
 10 late() {
+    sim.demandPhenotype(NULL);
     sim.treeSeqOutput(TREES_FILE, metadata=METADATA);
     catn("Done.");
     sim.simulationFinished();

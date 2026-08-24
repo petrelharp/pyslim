@@ -62,6 +62,7 @@ mutation() {
 
 // OUTPUT/FINISH
 10 late() {
+    sim.demandPhenotype(NULL);
     sim.treeSeqOutput(TREES_FILE, metadata=MD);
     catn("Done.");
     sim.simulationFinished();
