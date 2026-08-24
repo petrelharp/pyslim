@@ -1303,13 +1303,32 @@ wheels = [
 
 [[package]]
 name = "msprime"
-version = "0.4.1.dev3447"
-source = { git = "https://github.com/petrelharp/msprime?rev=slim_v6_muts#78a5dc551155367f49e99b7ac63931531b199d01" }
+version = "1.4.3"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "demes" },
     { name = "newick" },
     { name = "numpy" },
     { name = "tskit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/61/bc/de8468621271c40978da95f585e5bf3e71ad4c26f5a227474f939093c4a3/msprime-1.4.3.tar.gz", hash = "sha256:22f54a2c7c768de386350eccdd4d828018f36f06dab6be7059666bee544f215c", size = 2278600, upload-time = "2026-08-31T17:49:16.542Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ac/85/240dfe36dcf58a9391b044959c2bb5159e94762cdc590845a93645df46cb/msprime-1.4.3-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:6d2a006fc1f65aa752ac82f1776761e2582368feeaab3f962a2b5d7e4e71d6c5", size = 1292046, upload-time = "2026-08-31T17:48:47.875Z" },
+    { url = "https://files.pythonhosted.org/packages/70/01/f07c379e3f979e31c7671b3a1e4913e5e85192095855de635cf1a658c1ea/msprime-1.4.3-cp311-cp311-macosx_14_0_x86_64.whl", hash = "sha256:4eba4e81a8eccfc052b4970d196310b3bc0877c3306d96e82ce9560c876db7d9", size = 1516674, upload-time = "2026-08-31T17:48:49.832Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/c6/32194d03179010492cf2e51de03fed8d2c8d9864e57981443a1ebc7644b2/msprime-1.4.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:dcb967e461fc80d8c0c0ed698c80a890bc67c92b6b7ee22f1336c8c2b7a97bc8", size = 2445873, upload-time = "2026-08-31T17:48:51.589Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/48/42815a3046c3c00c5ed6ff41d7dab7d6ecf8266213e867ac3f8438f92c7a/msprime-1.4.3-cp311-cp311-win_amd64.whl", hash = "sha256:c4ddd4f580a20e234463f14021f8888fa42dee4c70959bff2945de99b7235d7d", size = 1587928, upload-time = "2026-08-31T17:48:53.287Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/1f/45713e5ac68db421ff604a8046e6c97963ad807d1eae69aa9be711a28c60/msprime-1.4.3-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:6e9dcb7db69774e17a48558db5326273c3277932fb6bdc48ecb4de450a3ff888", size = 1292222, upload-time = "2026-08-31T17:48:54.822Z" },
+    { url = "https://files.pythonhosted.org/packages/04/c0/155a63631e5b9c1e93f7a63e036f2f21caa21df5095178f9beb584fd494b/msprime-1.4.3-cp312-cp312-macosx_14_0_x86_64.whl", hash = "sha256:70c97a62071868b033cdcc0f4d536881b79084aa43e206f43beaf4513449673b", size = 1517567, upload-time = "2026-08-31T17:48:56.442Z" },
+    { url = "https://files.pythonhosted.org/packages/78/0a/9b8def9e664f9998d62caa68275058588ac463988f970391d4d2cab32655/msprime-1.4.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:cc8d8fe5aff8b3f693c1c85d641863edfb9cfe39efecdf36f3f6a0bdc30916d0", size = 2451075, upload-time = "2026-08-31T17:48:58.305Z" },
+    { url = "https://files.pythonhosted.org/packages/94/98/c4ef66672f2e5de02bb79cf7c082d2380a801ade37f3b5865fc337fc281b/msprime-1.4.3-cp312-cp312-win_amd64.whl", hash = "sha256:5d8e5b0e93180ff6a7bdae9c9575af2079f83b4590a8b954f51139e694c4e111", size = 1587359, upload-time = "2026-08-31T17:49:00.101Z" },
+    { url = "https://files.pythonhosted.org/packages/95/57/e6a20b48b6e8fed606c7a0e26680920f5abc155d610f2a66d3dec3559e31/msprime-1.4.3-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:13551ef6ace064d81a0c8dc7640a7ee9eb003e1f6dcd366741afdcbdbd9845a9", size = 1292226, upload-time = "2026-08-31T17:49:01.888Z" },
+    { url = "https://files.pythonhosted.org/packages/12/2e/636a3f3fdd2f27c2bdbd48614a7b3384af2ffef81ef6c61e50bae7d12828/msprime-1.4.3-cp313-cp313-macosx_14_0_x86_64.whl", hash = "sha256:e1eb370e8314757b2f9588bc462cae8a2db39c1436d00fb57f3e1141cbb55384", size = 1517564, upload-time = "2026-08-31T17:49:03.612Z" },
+    { url = "https://files.pythonhosted.org/packages/69/eb/cd3ef070dedadc58ce348b2a00c9dec1d178995218addb4d485e8793942f/msprime-1.4.3-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:dfe97da43f6ce72a95341524717a025b25dc517e447fe99cf27b4cf5b96acddc", size = 2450979, upload-time = "2026-08-31T17:49:05.24Z" },
+    { url = "https://files.pythonhosted.org/packages/2b/83/7418da3b43894b7c5d459eba8122cc2d729deb178e936143397031a304c6/msprime-1.4.3-cp313-cp313-win_amd64.whl", hash = "sha256:6fdd45954f25946ea706defcd948690a7974194a76d3ff7761e5867dcda960fb", size = 1587358, upload-time = "2026-08-31T17:49:06.938Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/a6/1636ff90f058042e11f77a031ccb8a36d60fbfd47254e00acb7d75a21897/msprime-1.4.3-cp314-cp314-macosx_14_0_arm64.whl", hash = "sha256:a85b45d34227dd8b4e157644affdfe6af44dd60f21c6a9e94f0b37765409f84e", size = 1292258, upload-time = "2026-08-31T17:49:08.596Z" },
+    { url = "https://files.pythonhosted.org/packages/50/3f/5019c6987b8aec7817bc72ab857e635c1619fee5a7fddc3af0916e87d217/msprime-1.4.3-cp314-cp314-macosx_14_0_x86_64.whl", hash = "sha256:4a886b50ff4192f8541f33f35768b309d60fbde0af034a7a309c93af09528753", size = 1517351, upload-time = "2026-08-31T17:49:10.961Z" },
+    { url = "https://files.pythonhosted.org/packages/6b/c0/6cdd9f11f34a5bb8187ab220055b0011f7f12a78b43a555a12828878d541/msprime-1.4.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:5fe0a69842cb2ad696903c7256449f78911752c094e9f3b82e5f6127785dd357", size = 2450918, upload-time = "2026-08-31T17:49:13.057Z" },
+    { url = "https://files.pythonhosted.org/packages/83/04/b88e4cbf7191e6303a27cf05334491fb51252a8168c73049944cd2b09deb/msprime-1.4.3-cp314-cp314-win_amd64.whl", hash = "sha256:430343b68a18915a869c0d4a1b69ffbddabb21f528c7e406f08b6e0e091afdfd", size = 1641543, upload-time = "2026-08-31T17:49:14.726Z" },
 ]
 
 [[package]]
@@ -1933,7 +1952,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "msprime" },
+    { name = "msprime", specifier = ">=1.4.3" },
     { name = "numpy" },
     { name = "tskit", specifier = ">=1.0.3" },
 ]
@@ -1945,7 +1964,7 @@ dev = [
     { name = "jupyter-book", specifier = "<2" },
     { name = "matplotlib" },
     { name = "msprime" },
-    { name = "msprime", git = "https://github.com/petrelharp/msprime?rev=slim_v6_muts" },
+    { name = "msprime", specifier = ">=1.4.3" },
     { name = "pandas" },
     { name = "plotnine" },
     { name = "prek", specifier = "==0.3.3" },
@@ -1981,7 +2000,7 @@ packaging = [
 test = [
     { name = "filelock" },
     { name = "frozendict" },
-    { name = "msprime", git = "https://github.com/petrelharp/msprime?rev=slim_v6_muts" },
+    { name = "msprime", specifier = ">=1.4.3" },
     { name = "pandas" },
     { name = "pytest" },
     { name = "pytest-cov" },
