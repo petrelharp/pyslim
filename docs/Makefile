@@ -7,7 +7,7 @@ clean:
 	rm -fR _build
 	rm -f *.trees
 
-example_sim.trees : example_sim.slim
+%.trees : %.slim
 	slim -s 23 $<
 
-prereqs: example_sim.trees
+prereqs: example_sim.trees phenotypes.trees phenotypes2.trees phenotypes3.trees

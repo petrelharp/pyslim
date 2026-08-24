@@ -123,10 +123,6 @@ _raw_slim_metadata_schemas = {
                             "enum": ["WF", "nonWF"],
                             "type": "string",
                         },
-                        "mutrun_count_hint": {
-                            "type": "integer",
-                            "description": "An optional hint regarding the number of mutation runs to use in SLiM; for SLiM internal use only.",
-                        },
                         "name": {
                             "description": "The SLiM species name represented by this tree sequence.",
                             "type": "string",

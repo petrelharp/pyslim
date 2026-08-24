@@ -1,8 +1,8 @@
 initialize() {
 	setSeed(123);
 	initializeTreeSeq(timeUnit="generations");
-	initializeTrait("weight", "additive", baselineOffset=5.0, individualOffsetSD=0.2);
-	initializeTrait("wing", "additive", baselineOffset=-1.0, individualOffsetSD=0.1);
+	initializeTrait("mult", "multiplicative", baselineOffset=5.0, individualOffsetSD=0.1);
+	initializeTrait("logistic", "logistic", baselineOffset=-1.0, individualOffsetSD=0.1);
 	
 	initializeMutationType("m1", 0.2, "n", 0.0, 0.01); 
 	initializeMutationType("m2", NAN, "n", 0.0, 0.01); 
@@ -20,6 +20,5 @@ initialize() {
 
 1000 late() {
 	sim.demandPhenotype(NULL, NULL);
-	sim.treeSeqOutput("phenotypes2.trees");
+	sim.treeSeqOutput("phenotypes3.trees");
 }
-

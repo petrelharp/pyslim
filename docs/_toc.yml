@@ -12,6 +12,7 @@ parts:
   - file: vignette_continuing
   - file: vignette_coalescent_diversity
   - file: vignette_parallel_phylo
+  - file: phenotypes.md
   - file: time_units
   - file: metadata
   - file: previous_versions
