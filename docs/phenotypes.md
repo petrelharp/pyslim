@@ -1,0 +1,254 @@
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.12
+    jupytext_version: 1.9.1
+kernelspec:
+  display_name: Python 3
+  language: python
+  name: python3
+---
+
+```{code-cell}
+:tags: [remove-cell]
+
+import pyslim, tskit, msprime
+from IPython.display import SVG
+import numpy as np
+import util
+import plotnine as p9
+
+np.random.seed(1234)
+```
+
+
+(sec_phenotypes)=
+
+
+# Working with traits and phenotypes
+
+An individual's phenotype for an trait in SLiM is the result of that individual's genetic effects,
+and both global and individual-specific "offsets".
+SLiM records in metadata both phenotype and offset, so we can use these (by subtraction, for an additive trait)
+to determine the genetic value.
+We can also compute genetic contributions directly, which can be helpful,
+for instance, to decompose genetic variance from different parts of the genome.
+
+Let's start off with this simulation, which has:
+
+- two additive traits,
+- with Gaussian selection on both,
+- started away from the optimum;
+- correlated mutational effects,
+- and also neutral mutations.
+
+The recipe also saves the state of the population (by remembering everyone)
+every 1,000 generations.
+
+```{literalinclude} phenotypes.slim
+```
+
+
+(sec_phenotypes_trait_values)=
+
+## Trait and offset values
+
+First, let's load the result of the simulation and look at trait distributions in each of the saved time points.
+```{code-cell}
+ts = tskit.load("phenotypes.trees")
+ts_metadata = ts.metadata
+mut_metadata = pyslim.mutation_metadata(ts)
+```
+Here's information about the traits:
+```{code-cell}
+ts_metadata['SLiM']['traits']
+```
+
+Here's the information we have about a given individual:
+```{code-cell}
+ts.individual(0)
+```
+In particular, phenotype and offset values:
+```{code-cell}
+ts.individual(0).metadata['per_trait']
+```
+
+Next, let's find the birth time of each individual, and see which times we have information for
+(this is simple because it's a WF simulation):
+```{code-cell}
+ind_times = ts.nodes_time[ts.individuals_nodes[:,0]]
+
+from collections import Counter
+Counter([int(t) for t in ind_times])
+```
+
+We can use the helpful `metadata_vector` method of table collections
+to quickly pull out the phenotype and offset vectors:
+```{code-cell}
+ind_phenotypes = np.column_stack([
+    ts.tables.individuals.metadata_vector(["per_trait", j, "phenotype"])
+    for j in (0, 1)
+])
+ind_offsets = np.column_stack([
+    ts.tables.individuals.metadata_vector(["per_trait", j, "offset"])
+    for j in (0, 1)
+])
+```
+
+To prepare to make the plots
+(using [plotnine](https://plotnine.org))
+we'll put everything in a data frame:
+```{code-cell}
+df = pd.DataFrame({
+    'pedigree_id' : ts.tables.individuals.metadata_vector("pedigree_id"),
+    'time' : ind_times,
+    "phenotype1" : ind_phenotypes[:,0],
+    "offset1" : ind_offsets[:,0],
+    "phenotype2" : ind_phenotypes[:,1],
+    "offset2" : ind_offsets[:,1],
+})
+```
+As noted before, we can get the genetic contributions
+by subtracting the individual-level offsets:
+```{code-cell}
+df['genetic_value1'] = df['phenotype1'] - df['offset1']
+df['genetic_value2'] = df['phenotype2'] - df['offset2']
+```
+Now, here's phenotype distributions across these time slices
+```{code-cell}
+( df >> 
+    p9.ggplot(p9.aes(x='phenotype1', color="time"))
+    + p9.geom_histogram(bins=40) + p9.facet_grid("time ~")
+)
+```
+Here's how the population moved through 2d phenotype space:
+```{code-cell}
+(
+    df >> p9.ggplot(p9.aes(x="phenotype1", y="phenotype2", color="time")) 
+    + p9.geom_point(alpha=0.5)
+)
+```
+That's the phenotypes; it turns out that most of that spread is actually
+"offset", i.e., what's usually called "environmental" noise:
+```{code-cell}
+(
+    df >> p9.ggplot(p9.aes(x="genetic_value1", y="genetic_value2", color="time")) 
+    + p9.geom_point(alpha=0.5)
+)
+```
+
+(sec_phenotypes_mutation_effects)=
+
+## Mutation effects
+
+Now let's see how to use mutation information to calculate genetic values directly.
+For example, here's the first mutation:
+```{code-cell}
+mut = ts.mutation(0)
+mut
+```
+We can see which SLiM mutation(s) this mutation represents
+by looking at the mutation's derived state,
+and pulling the information out of the mutation metadata
+(recall that this is indexed by ints, not strings!):
+```{code-cell}
+mut_metadata[int(mut.derived_state)]
+```
+So, we can use the `effect_size` and `dominance`
+to calculate genetic effects (we won't need `hemizygous dominance`).
+Here is a function that calculates the effect of a pair of alleles:
+```{code-cell}
+from collections import Counter
+
+def allele_effect(a, b, num_traits=2):
+    # note this works for additive traits:
+    # multiplicative ones are "* (1 + hs)" instead of "+ 2hs"
+    out = np.zeros((num_traits,))
+    muts = Counter(a.split(",")) + Counter(b.split(","))
+    for m in muts:
+        if m != "":
+            md = mut_metadata[int(m)]['per_trait']
+            if muts[m] == 1:
+                for j in range(num_traits):
+                    h = md[j]['dominance']
+                    if np.isnan(h):
+                        h = 1/2
+                    out[j] += 2 * md[j]['effect_size'] * h
+            if muts[m] == 2:
+                for j in range(num_traits):
+                    out[j] += 2 * md[j]['effect_size']
+    return out
+
+# for instance, a homozygote for that mutation:
+allele_effect(mut.derived_state, mut.derived_state)
+```
+
+Using this and {meth}`tskit.TreeSequence.variants`,
+we can compute genetic values for an individual:
+```{code-cell}
+def genetic_value(ind, num_traits=2):
+    out = np.zeros((num_traits,))
+    for v in ts.variants(samples=ind.nodes):
+        x, y = [v.alleles[g] for g in v.genotypes]
+        out += allele_effect(x, y)
+    return out
+
+genetic_value(ts.individual(0))
+```
+
+The final component is offsets
+(TODO: await finalization of [this issue](https://github.com/MesserLab/SLiM/issues/661)):
+```{code-cell}
+def offset(ind):
+    out = np.array([x['baselineOffset'] for x in ts_metadata['SLiM']['traits']])
+    out += [x['offset'] for x in ind.metadata['per_trait']]
+    return out
+
+offset(ts.individual(0))
+```
+
+(sec_phenotypes_multiplicative_traits)=
+
+## Multiplicative and logistic traits
+
+To see how multiplicative and logistic traits work,
+we'll use a substantially simpler recipe:
+
+```{literalinclude} phenotypes2.slim
+```
+
+This produces:
+```{code-cell}
+ts2 = tskit.load("phenotypes2.trees")
+ts2
+```
+
+Just for the heck of it, we'll load the information into a data frame
+row-wise instead of column-wise:
+```{code-cell}
+df2 = pd.DataFrame([
+        (
+         ts2.node(ind.nodes[0]).time,
+         ind.metadata['per_trait'][0]['phenotype'],
+         ind.metadata['per_trait'][0]['offset'],
+         ind.metadata['per_trait'][1]['phenotype'],
+         ind.metadata['per_trait'][1]['offset'],
+        )
+        for ind in ts2.individuals()
+    ],
+    columns=['time', "phenotype1", "offset1", "phenotype2", "offset2"],
+)
+```
+
+Here's the distribution of trait values.
+The first is positive (since it's multiplicative)
+and the second between 0 and 1 (since it's logistic).
+```{code-cell}
+(
+    df2 >> p9.ggplot(p9.aes(x='phenotype1')) + p9.geom_histogram(bins=40)
+) | (
+    df2 >> p9.ggplot(p9.aes(x='phenotype2')) + p9.geom_histogram(bins=40)
+) 
+```
