@@ -186,9 +186,13 @@ _raw_slim_metadata_schemas = {
                                         "description": "Whether the baseline offset includes accumulated effects from fixed (substituted) mutations.",
                                         "type": "boolean",
                                     },
-                                    "baselineOffset": {
-                                        "description": "The baseline offset of the trait.",
+                                    "baselineOffsetFromUser": {
                                         "type": "number",
+                                        "description": "The from-user component of the baseline offset of the trait.",
+                                    },
+                                    "baselineOffsetFromSubstitutions": {
+                                        "type": "number",
+                                        "description": "The from-substitutions component of the baseline offset of the trait.",
                                     },
                                     "directFitnessEffect": {
                                         "description": "Whether the trait's effects are used directly as fitness effects.",

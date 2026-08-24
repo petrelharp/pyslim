@@ -42,7 +42,19 @@ def canonicalise_tables(tables):
     tables.canonicalise()
 
 
-def verify_slim_restart_equality(in_ts_dict, out_ts_dict, check_prov=True):
+def invalidate_phenotypes(tables):
+    indivs = tables.individuals.copy()
+    tables.individuals.clear()
+    for ind in indivs:
+        md = ind.metadata
+        for x in md["per_trait"]:
+            x["phenotype"] = np.nan
+        tables.individuals.append(ind.replace(metadata=md))
+
+
+def verify_slim_restart_equality(
+    in_ts_dict, out_ts_dict, check_prov=True, phenotypes=True
+):
     """
     Check for equality, in everything but the last provenance.
     """
@@ -56,6 +68,9 @@ def verify_slim_restart_equality(in_ts_dict, out_ts_dict, check_prov=True):
         canonicalise_tables(in_tables)
         out_tables = out_ts.dump_tables()
         canonicalise_tables(out_tables)
+        if not phenotypes:
+            invalidate_phenotypes(in_tables)
+            invalidate_phenotypes(out_tables)
         in_tables.assert_equals(out_tables, ignore_provenance=True)
 
 
@@ -585,6 +600,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 WF=False,
                 subpop_map=subpop_map,
                 multichrom=False,
+                PHENOTYPES=False,
             )["default"]
             self.verify_remapping(ts, sts, subpop_map)
 
@@ -670,6 +686,7 @@ class TestAnnotate(tests.PyslimTestCase):
                     tmp_path,
                     WF=wf,
                     subpop_map=subpop_map,
+                    PHENOTYPES=False,
                 )
                 self.verify_remapping(fox_ts, tsd["fox"], subpop_map["fox"])
                 self.verify_remapping(mouse_ts, tsd["mouse"], subpop_map["mouse"])
@@ -797,6 +814,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 multichrom=False,
                 WF=False,
                 subpop_map=subpop_map,
+                PHENOTYPES=False,
             )["default"]
             self.verify_remapping(ts, rts, subpop_map)
 
@@ -863,6 +881,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 multichrom=False,
                 WF=True,
                 subpop_map=subpop_map,
+                PHENOTYPES=False,
             )["default"]
             self.verify_remapping(ts, rts, subpop_map)
 
@@ -934,6 +953,7 @@ class TestAnnotate(tests.PyslimTestCase):
             tmp_path,
             "multichrom" in recipe,
             WF=False,
+            PHENOTYPES=True,
         )
         # check for equality, in everything but the last provenance
         verify_slim_restart_equality(in_ts, out_ts)
@@ -947,6 +967,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 tmp_path,
                 "multichrom" in recipe,
                 subpop_map=subpop_map,
+                PHENOTYPES=True,
             )
             assert in_ts.keys() == out_ts.keys()
             for k in in_ts:
@@ -982,10 +1003,13 @@ class TestAnnotate(tests.PyslimTestCase):
             in_ts[chrom] = tables.tree_sequence()
         # put it through SLiM (which just reads in and writes out)
         out_ts = helper_functions.run_slim_restart(
-            in_ts, restart_name, tmp_path, "multichrom" in recipe
+            in_ts,
+            restart_name,
+            tmp_path,
+            "multichrom" in recipe,
         )
         # check for equality, in everything but the last provenance
-        verify_slim_restart_equality(in_ts, out_ts)
+        verify_slim_restart_equality(in_ts, out_ts, phenotypes=False)
 
 
 class TestReload(tests.PyslimTestCase):

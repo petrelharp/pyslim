@@ -14,7 +14,6 @@ initialize()
     if (!exists("SUBPOP_MAP")) defineConstant("SUBPOP_MAP", NULL);
 }
 
-// output immediately! Nothing should have changed.
 1 early() { 
   if (STAGE == "early") {
     sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
@@ -28,6 +27,7 @@ initialize()
 
 20 early() {
     catn("Done.");
+    sim.demandPhenotype(NULL);
     sim.treeSeqOutput(TREES_FILE, simplify=F);
     sim.simulationFinished();
 }

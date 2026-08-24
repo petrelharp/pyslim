@@ -5,6 +5,7 @@ species all initialize()
 {
     setSeed(23);
     initializeSLiMModelType("WF");
+    if (!exists("PHENOTYPES")) defineGlobal("PHENOTYPES", T);
 }
 
 species fox initialize()
@@ -38,6 +39,7 @@ ticks all 1 early() {
   if (STAGE == "early") {
     for (sp in community.allSpecies) {
 	    sp.readFromPopulationFile(TREES_IN.getValue(sp.name), subpopMap=SUBPOP_MAP.getValue(sp.name));
+       if (PHENOTYPES) sp.demandPhenotype(NULL);
    	 sp.treeSeqOutput(executeLambda("TREES_FILE_" + sp.name + ";"), simplify=F);
     }
   }
@@ -46,6 +48,7 @@ ticks all 1 late() {
   if (STAGE == "late") {
     for (sp in community.allSpecies) {
 	    sp.readFromPopulationFile(TREES_IN.getValue(sp.name), subpopMap=SUBPOP_MAP.getValue(sp.name));
+       if (PHENOTYPES) sp.demandPhenotype(NULL);
    	 sp.treeSeqOutput(executeLambda("TREES_FILE_" + sp.name + ";"), simplify=F);
     }
   }

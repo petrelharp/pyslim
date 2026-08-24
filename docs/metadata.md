@@ -67,8 +67,10 @@ and `ts.metadata["SLiM"]` contains information about the simulation:
     * `index`: the index of the trait in SLiM
     * `name`: the name in SLiM for the trait
     * `type`: additive, multiplicative, or logistic
-    * `baselineOffset`, `baselineAccumulation`: a value added to all traits, and whether the effect of substitutions
-      accumulate in that value
+    * `baselineOffsetFromUser`: a value added to all traits
+    * `baselineOffsetFromSubstitutions`: the total effect of all substitutions on the traits
+      at the time the tree sequence was saved
+    * `baselineAccumulation`: whether the effect of substitutions accumulate in that value
     * `directFitnessEffect`: whether the trait has a direct effect on fitness
     * `individualOffsetMean`, `individualOffsetSD`: parameters governing the individual-level offsets
       (i.e., "environment" effects)
@@ -148,7 +150,7 @@ we might do:
 md = ts.metadata
 traits = md["SLiM"]["traits"]
 values = [
-    [x['phenotype'] - y["baselineOffset"] for x, y in zip(ind.metadata['per_trait'], traits)]
+    [x['phenotype'] - y["baselineOffsetFromUser"] for x, y in zip(ind.metadata['per_trait'], traits)]
     for ind in ts.individuals()
 ]
 ```

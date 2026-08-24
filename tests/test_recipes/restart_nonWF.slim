@@ -4,6 +4,7 @@ initialize()
     if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
     // as well as any bespoke TREES_FILE for output, you need to define:
     //  TREES_IN = path to trees to initialise
+    if (!exists("PHENOTYPES")) defineGlobal("PHENOTYPES", T);
     initializeSLiMModelType("nonWF");
     initializeTreeSeq();
     initializeMutationRate(1e-2);
@@ -19,6 +20,7 @@ initialize()
   if (STAGE == "early") {
     md = treeSeqMetadata(TREES_IN, userData=F).getValue("SLiM").getValue("user_metadata");
     sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
+    if (PHENOTYPES) sim.demandPhenotype(NULL);
     sim.treeSeqOutput(TREES_FILE, simplify=F, metadata=md);
   }
 }
@@ -27,6 +29,7 @@ initialize()
   if (STAGE == "late") {
     md = treeSeqMetadata(TREES_IN, userData=F).getValue("SLiM").getValue("user_metadata");
     sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
+    if (PHENOTYPES) sim.demandPhenotype(NULL);
     sim.treeSeqOutput(TREES_FILE, simplify=F, metadata=md);
   }
 }
