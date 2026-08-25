@@ -3,6 +3,7 @@
 # possible attributes to simulation scripts are
 #  (the script name itself, to specify a particular one)
 #  WF, nonWF
+#  minimal: a minimal set of recipes to test basic things with
 #  adds_mutations
 #  nucleotides, non-nucleotides: has the respective sorts of mutations
 #  mutation_spectrum: writes out info file on mutation spectrum
@@ -21,10 +22,15 @@
 #  (chromosome type)
 # All files are of the form `tests/test_recipes/{key}`
 recipe_specs = {
-    "recipe_nonWF.slim": {"nonWF": True, "pedigree": True, "record_mutations": True},
-    "recipe_nonWF_X.slim": {"nonWF": True, "pedigree": True, "X": True},
+    "recipe_nonWF.slim": {
+        "nonWF": True,
+        "pedigree": True,
+        "record_mutations": True,
+        "minimal": True,
+    },
+    "recipe_nonWF_X.slim": {"nonWF": True, "pedigree": True, "X": True, "minimal": True},
     "recipe_nonWF_Y.slim": {"nonWF": True, "pedigree": True, "Y": True},
-    "recipe_nonWF_H.slim": {"nonWF": True, "pedigree": True, "H": True},
+    "recipe_nonWF_H.slim": {"nonWF": True, "pedigree": True, "H": True, "minimal": True},
     "recipe_WF_X.slim": {
         "WF": True,
         "pedigree": True,
@@ -83,7 +89,12 @@ recipe_specs = {
     },
     "recipe_long_nonWF.slim": {"nonWF": True, "long": True},
     "recipe_old_nonWF.slim": {"nonWF": True, "remembered_first": True},
-    "recipe_WF.slim": {"WF": True, "pedigree": True, "record_mutations": True},
+    "recipe_WF.slim": {
+        "WF": True,
+        "pedigree": True,
+        "record_mutations": True,
+        "minimal": True,
+    },
     "recipe_no_simplify.slim": {"WF": True, "no_simplify": True},
     "recipe_long_WF.slim": {"WF": True, "long": True},
     "recipe_WF_migration.slim": {"WF": True, "pedigree": True, "multipop": True},
@@ -93,6 +104,7 @@ recipe_specs = {
         "nucleotides": True,
         "record_mutations": True,
         "refseq": True,
+        "minimal": True,
     },
     "recipe_nucleotides_nonWF.slim": {
         "nonWF": True,
@@ -183,6 +195,7 @@ recipe_specs = {
         "HM": True,
         "ML": True,
         "Y-": True,
+        "minimal": True,
     },
     "recipe_chromosomes_adds_muts.slim": {
         "WF": True,
@@ -214,6 +227,7 @@ recipe_specs = {
         "X": True,
         "Y": True,
         "H": True,
+        "minimal": True,
     },
 }
 

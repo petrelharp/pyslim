@@ -683,10 +683,12 @@ class TestHasIndividualParents(tests.PyslimTestCase):
             rng = np.random.default_rng(seed=3)
             individual_times = ts.individuals_time
             md_tick = ts.metadata["SLiM"]["tick"]
+            # assumes tick hasn't been changed
+            inds = np.where(individual_times < md_tick - 1)[0]
+            assert len(inds) > 2
             keep_indivs = rng.choice(
-                # assumes tick hasn't been changed
-                np.where(individual_times < md_tick - 1)[0],
-                size=30,
+                inds,
+                size=min(30, len(inds)),
                 replace=False,
             )
             keep_nodes = []
@@ -851,7 +853,6 @@ class TestReferenceSequence(tests.PyslimTestCase):
     def test_reference_sequence(self, recipe):
         for _, ts in recipe["ts"].items():
             if ts.num_mutations > 0:
-                mut_md = ts.mutation(0).metadata
                 has_nucleotides = "nucleotides" in recipe
                 if not has_nucleotides:
                     assert not ts.has_reference_sequence()
@@ -881,7 +882,6 @@ class TestReferenceSequence(tests.PyslimTestCase):
         for _, ts in recipe["ts"].items():
             u = ts.samples()[0]
             if ts.num_mutations > 0:
-                mut_md = ts.mutation(0).metadata
                 if not ts.has_reference_sequence():
                     with pytest.raises(ValueError, match="has no reference seq"):
                         pyslim.nucleotide_at(ts, u, 3)
@@ -921,46 +921,40 @@ class TestReferenceSequence(tests.PyslimTestCase):
     def test_nucleotide_at(self, recipe):
         random.seed(42)
         for _, ts in recipe["ts"].items():
-            if ts.num_mutations > 0:
-                mut_metadata = pyslim.mutation_metadata(ts)
-                mut_md = ts.mutation(0).metadata
-                tsmd = ts.metadata
-                # check we've got nucleotide mutations
-                nucs = np.array([x["nucleotide"] for x in tsmd["SLiM_mutation_list"]])
-                assert np.sum(nucs >= 0) > 1
-                mut_info = {
-                    str(mut["mutation_id"]): mut for mut in tsmd["SLiM_mutation_list"]
-                }
-                assert ts.has_reference_sequence()
-                assert len(ts.reference_sequence.data) == ts.sequence_length
-                for _ in range(100):
-                    node = random.randint(0, ts.num_nodes - 1)
-                    pos = random.randint(0, int(ts.sequence_length) - 1)
-                    tree = ts.at(pos)
-                    parent = tree.parent(node)
-                    a = pyslim.nucleotide_at(ts, node, pos)
-                    if parent == tskit.NULL:
-                        nuc = ts.reference_sequence.data[int(pos)]
-                        assert a == pyslim.NUCLEOTIDES.index(nuc)
-                    else:
-                        b = pyslim.nucleotide_at(
-                            ts, parent, pos, mut_metadata=mut_metadata
-                        )
-                        c = pyslim.nucleotide_at(
-                            ts,
-                            node,
-                            pos,
-                            ts.node(parent).time,
-                            mut_metadata=mut_metadata,
-                        )
-                        assert b == c
-                        for k in np.where(node == ts.tables.mutations.node)[0]:
-                            mut = ts.mutation(k)
-                            if ts.site(mut.site).position == pos:
-                                b = mut_info[mut.derived_state.split(",")[0]][
-                                    "nucleotide"
-                                ]
-                        assert a == b
+            assert ts.num_mutations > 0
+            mut_metadata = pyslim.mutation_metadata(ts)
+            tsmd = ts.metadata
+            # check we've got nucleotide mutations
+            nucs = np.array([x["nucleotide"] for x in mut_metadata.values()])
+            assert np.sum(nucs >= 0) > 1
+            assert ts.has_reference_sequence()
+            assert len(ts.reference_sequence.data) == ts.sequence_length
+            for _ in range(100):
+                node = random.randint(0, ts.num_nodes - 1)
+                pos = random.randint(0, int(ts.sequence_length) - 1)
+                tree = ts.at(pos)
+                parent = tree.parent(node)
+                a = pyslim.nucleotide_at(ts, node, pos, mut_metadata=mut_metadata)
+                if parent == tskit.NULL:
+                    nuc = ts.reference_sequence.data[int(pos)]
+                    assert a == pyslim.NUCLEOTIDES.index(nuc)
+                else:
+                    b = pyslim.nucleotide_at(ts, parent, pos, mut_metadata=mut_metadata)
+                    c = pyslim.nucleotide_at(
+                        ts,
+                        node,
+                        pos,
+                        ts.node(parent).time,
+                        mut_metadata=mut_metadata,
+                    )
+                    assert b == c
+                    for k in np.where(node == ts.tables.mutations.node)[0]:
+                        mut = ts.mutation(k)
+                        if ts.site(mut.site).position == pos:
+                            b = mut_metadata[int(mut.derived_state.split(",")[0])][
+                                "nucleotide"
+                            ]
+                    assert a == b
 
     @pytest.mark.parametrize("recipe", [next(recipe_eq("nucleotides"))], indirect=True)
     def test_nucleotide_at_without_mut_metadata(self, recipe):
@@ -983,7 +977,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
         # access to the parental genome, so if two adjacent mutations
         # occur in the same meiosis then each will not know about the other.
         for _, ts in recipe["ts"].items():
-            mut_info = pyslim.mutation_metadata(ts)
+            mut_metadata = pyslim.mutation_metadata(ts)
             mutation_spectrum = recipe["mutation_info"]
             M = {
                 a + b + c + "," + d: 0
@@ -997,17 +991,27 @@ class TestReferenceSequence(tests.PyslimTestCase):
                 pos = ts.site(mut.site).position
                 if pos > 0 and pos < ts.sequence_length - 1:
                     nmuts += 1
-                    mut_list = [mut_info[int(k)] for k in mut.derived_state.split(",")]
+                    mut_list = [
+                        mut_metadata[int(k)] for k in mut.derived_state.split(",")
+                    ]
                     k = np.argmax([u["slim_time"] for u in mut_list])
                     derived_nuc = mut_list[k]["nucleotide"]
                     left_nuc = pyslim.nucleotide_at(
-                        ts, mut.node, pos - 1, time=mut.time + 1.0
+                        ts,
+                        mut.node,
+                        pos - 1,
+                        time=mut.time + 1.0,
+                        mut_metadata=mut_metadata,
                     )
                     right_nuc = pyslim.nucleotide_at(
-                        ts, mut.node, pos + 1, time=mut.time + 1.0
+                        ts,
+                        mut.node,
+                        pos + 1,
+                        time=mut.time + 1.0,
+                        mut_metadata=mut_metadata,
                     )
                     parent_nuc = pyslim.nucleotide_at(
-                        ts, mut.node, pos, time=mut.time + 1.0
+                        ts, mut.node, pos, time=mut.time + 1.0, mut_metadata=mut_metadata
                     )
                     context = "".join(
                         [

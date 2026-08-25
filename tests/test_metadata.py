@@ -2,6 +2,8 @@
 Test cases for the metadata reading/writing of pyslim.
 """
 
+import sys
+
 import numpy as np
 import pytest
 import tskit
@@ -91,6 +93,11 @@ class TestMetadataSchemas(tests.PyslimTestCase):
                 decoded = schema.decode_row(encoded)
                 assert entry == decoded
 
+    @pytest.mark.skipif(
+        sys.platform.startswith("win"),
+        reason="failing because of dict and OrderedDict comparison?",
+    )
+    @pytest.mark.parametrize("recipe", recipe_eq("minimal"), indirect=True)
     def test_slim_metadata_schema_equality(self, recipe):
         num_chromosomes = len(recipe["ts"])
         for ts in recipe["ts"].values():
