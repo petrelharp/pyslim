@@ -12,6 +12,10 @@ INDIVIDUAL_REMEMBERED = np.uint32(2**17)
 #: marked as "retained".
 INDIVIDUAL_RETAINED = np.uint32(2**18)
 
+#: Used in ``individual.flags`` to denote the individual was
+#: a migrant.
+INDIVIDUAL_MIGRATED = np.uint32(2**19)
+
 # deprecated but keep it around for backwards compatibility
 # (also, it means effectively the same thing as RETAINED)
 INDIVIDUAL_FIRST_GEN = INDIVIDUAL_RETAINED
@@ -41,9 +45,6 @@ INDIVIDUAL_TYPE_FEMALE = 0
 
 #: A value used in individual metadata ("sex") to indicate the individual is a male.
 INDIVIDUAL_TYPE_MALE = 1
-
-#: An individual flag indicating the individual is a migrant.
-INDIVIDUAL_FLAG_MIGRATED = np.uint32(1 << 0)
 
 #: This flag exists because SLiM expects certain vacant nodes
 #: to be marked as samples (those vacant nodes corresponding to alive individuals),

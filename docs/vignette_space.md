@@ -150,7 +150,7 @@ ts = pyslim.add_mutation_metadata(
        msprime.sim_mutations(
          recap_ts,
          rate=1e-8,
-         model=msprime.SLiMMutationModel(type=0),
+         model=msprime.SLiMv6MutationModel(),
          keep=True,
        )
 )

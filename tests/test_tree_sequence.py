@@ -62,8 +62,8 @@ def verify_mutation_metadata(ts):
     mut_info = pyslim.mutation_metadata(ts)
     assert len(mut_info) == len(mdl)
     for mut in ts.mutations():
-        for j in mut.derived_state.split(","):
-            assert int(j) in mut_info
+        for j in mut.metadata["derived_states"]:
+            assert j in mut_info
 
 
 class TestMutationMetadata(tests.PyslimTestCase):
@@ -121,7 +121,7 @@ class TestSlimTime(tests.PyslimTestCase):
             slim_times = pyslim.slim_time(ts, ts.mutations_time, stage=stage)
             for t, mut in zip(slim_times, ts.mutations()):
                 mut_time = max(
-                    [muts[int(j)]["slim_time"] for j in mut.derived_state.split(",")]
+                    [muts[j]["slim_time"] for j in mut.metadata["derived_states"]]
                 )
                 assert mut_time == t
 
@@ -133,14 +133,18 @@ class TestNextMutationID(tests.PyslimTestCase):
 
     def test_next_id(self, recipe):
         for _, ts in recipe["ts"].items():
-            mt_ids_str = ",".join(
-                tskit.unpack_strings(
-                    ts.tables.mutations.derived_state,
-                    ts.tables.mutations.derived_state_offset,
+            # let's do it directly just once somewhere
+            all_mt_ids = [
+                y
+                for x in tskit.unpack_bytes(
+                    ts.tables.mutations.metadata, ts.tables.mutations.metadata_offset
                 )
-            )
-            mt_ids = [int(i or 0) for i in mt_ids_str.split(",")]
-            max_mt_id = max(mt_ids)
+                for y in np.frombuffer(x, dtype="int64")
+            ]
+            if len(all_mt_ids) > 0:
+                max_mt_id = max(all_mt_ids)
+            else:
+                max_mt_id = -1
             assert max_mt_id + 1 == pyslim.next_slim_mutation_id(ts)
 
     @pytest.mark.skipif(sys.platform == "win32", reason="Issue #412")
@@ -166,7 +170,7 @@ class TestNextMutationID(tests.PyslimTestCase):
                     rts,
                     rate=max(6e-4, 10 / T),
                     keep=True,
-                    model=msprime.SLiMMutationModel(type=1, next_id=next_id),
+                    model=msprime.SLiMv6MutationModel(next_id=next_id),
                     random_seed=135,
                 ),
                 mutation_type=1,
@@ -216,7 +220,7 @@ class TestNextMutationID(tests.PyslimTestCase):
             rate=0.5,
             random_seed=23,
         )
-        with pytest.raises(ValueError, match="values coercible to int"):
+        with pytest.raises(ValueError, match="not in proper format"):
             pyslim.next_slim_mutation_id(mts)
 
 
@@ -844,8 +848,7 @@ class TestMutationConsistency(tests.PyslimTestCase):
             }
             mut_info = pyslim.mutation_metadata(ts)
             for mut in ts.mutations():
-                for k in mut.derived_state.split(","):
-                    k = int(k)
+                for k in mut.metadata["derived_states"]:
                     assert k in debug_info or mut_info[k]["mutation_id"] == 2
                     assert k in mut_info
                     assert debug_info[k]["chromosome_id"] == chrom_id
@@ -961,7 +964,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
                     for k in np.where(node == ts.tables.mutations.node)[0]:
                         mut = ts.mutation(k)
                         if ts.site(mut.site).position == pos:
-                            b = mut_metadata[int(mut.derived_state.split(",")[0])][
+                            b = mut_metadata[mut.metadata["derived_states"][0]][
                                 "nucleotide"
                             ]
                     assert a == b
@@ -1001,9 +1004,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
                 pos = ts.site(mut.site).position
                 if pos > 0 and pos < ts.sequence_length - 1:
                     nmuts += 1
-                    mut_list = [
-                        mut_metadata[int(k)] for k in mut.derived_state.split(",")
-                    ]
+                    mut_list = [mut_metadata[k] for k in mut.metadata["derived_states"]]
                     k = np.argmax([u["slim_time"] for u in mut_list])
                     derived_nuc = mut_list[k]["nucleotide"]
                     left_nuc = pyslim.nucleotide_at(
@@ -1051,15 +1052,13 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         mut_info = pyslim.mutation_metadata(ts)
         for mut in ts.mutations():
             slim_muts = {
-                k: v
-                for k, v in mut_info.items()
-                if str(k) in mut.derived_state.split(",")
+                k: v for k, v in mut_info.items() if k in mut.metadata["derived_states"]
             }
             if mut.parent == tskit.NULL:
                 parent_slim_ids = []
             else:
                 parent_mut = ts.mutation(mut.parent)
-                parent_slim_ids = parent_mut.derived_state.split(",")
+                parent_slim_ids = parent_mut.metadata["derived_states"]
             max_time = max([md["slim_time"] for md in slim_muts.values()])
             any_new = any(
                 [
@@ -1115,9 +1114,8 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         t = ts.dump_tables()
         t.mutations.clear()
         for m in ts.mutations():
-            a = np.array(m.derived_state.split(","))
-            ii = rng.permutation(len(a))
-            t.mutations.append(m.replace(derived_state=",".join(a[ii])))
+            a = rng.permutation(m.metadata["derived_states"])
+            t.mutations.append(m.replace(metadata={"derived_states": list(a)}))
         t.compute_mutation_parents()
         return t.tree_sequence()
 
@@ -1129,7 +1127,7 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         with pytest.raises(ValueError, match="must have a valid reference sequence"):
             _ = pyslim.convert_alleles(ts)
         mts = msprime.sim_mutations(
-            ts, model=msprime.SLiMMutationModel(type=1), rate=0.1, random_seed=23
+            ts, model=msprime.SLiMv6MutationModel(), rate=0.1, random_seed=23
         )
         assert mts.num_mutations > 0
         mts = pyslim.add_mutation_metadata(mts)
@@ -1210,8 +1208,8 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         }
         for mut in ts.mutations():
             aa = ts.reference_sequence.data[int(ts.site(mut.site).position)]
-            for i in mut.derived_state.split(","):
-                md = mut_info[int(i)]
+            for i in mut.metadata["derived_states"]:
+                md = mut_info[i]
                 nuc = md["nucleotide"]
                 assert nuc in [0, 1, 2, 3]
                 if i in muts:
@@ -1222,10 +1220,10 @@ class TestConvertNucleotides(tests.PyslimTestCase):
                     assert pyslim.NUCLEOTIDES[nuc] != aa
                 else:
                     mp = ts.mutation(mut.parent)
-                    if mp.derived_state != mut.derived_state:
+                    if mp.metadata["derived_states"] != mut.metadata["derived_states"]:
                         assert (ts_muts[mut.parent] != ts_muts[mut.id]) or (
-                            len(mut.derived_state.split(","))
-                            > 1 + len(mp.derived_state.split(","))
+                            len(mut.metadata["derived_states"])
+                            > 1 + len(mp.metadata["derived_states"])
                         )
 
     @pytest.mark.parametrize("recipe", recipe_eq(exclude="old_mutations"), indirect=True)
@@ -1247,8 +1245,9 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
         mts = pyslim.add_mutation_metadata(
             msprime.sim_mutations(
-                ts, model=msprime.SLiMMutationModel(type=1), rate=0.5, random_seed=23
-            )
+                ts, model=msprime.SLiMv6MutationModel(), rate=0.5, random_seed=23
+            ),
+            mutation_type=1,
         )
         refseq = "A" * int(mts.sequence_length)
         nts = pyslim.generate_nucleotides(mts, reference_sequence=refseq, seed=6)
@@ -1260,39 +1259,36 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         ts = pyslim.annotate(ts, model_type="nonWF", tick=1)
         mts1 = pyslim.add_mutation_metadata(
             msprime.sim_mutations(
-                ts, model=msprime.SLiMMutationModel(type=1), rate=0.1, random_seed=23
-            )
+                ts, model=msprime.SLiMv6MutationModel(), rate=0.1, random_seed=23
+            ),
+            mutation_type=1,
         )
         nts1 = pyslim.generate_nucleotides(mts1, seed=10, keep=False)
         assert nts1.num_mutations > 0
         self.verify_generate_nucleotides(nts1, check_transitions=False)
-        mut_info1 = {
-            str(mut["mutation_id"]): mut for mut in nts1.metadata["SLiM_mutation_list"]
-        }
+        mut_info1 = pyslim.mutation_metadata(nts1)
         mts2 = pyslim.add_mutation_metadata(
             msprime.sim_mutations(
                 nts1,
-                model=msprime.SLiMMutationModel(
-                    type=2,
+                model=msprime.SLiMv6MutationModel(
                     next_id=nts1.num_mutations,
                 ),
                 rate=0.1,
                 random_seed=24,
-            )
+            ),
+            mutation_type=2,
         )
         # keep defaults to True
         nts2 = pyslim.generate_nucleotides(mts2, seed=12)
         assert nts2.num_mutations > nts1.num_mutations
-        mut_info2 = {
-            str(mut["mutation_id"]): mut for mut in nts2.metadata["SLiM_mutation_list"]
-        }
+        mut_info2 = pyslim.mutation_metadata(nts2)
         muts1 = {}
         for mut in nts1.mutations():
-            for i in mut.derived_state.split(","):
+            for i in mut.metadata["derived_states"]:
                 md = mut_info1[i]
                 muts1[i] = md["nucleotide"]
         for mut in nts2.mutations():
-            for i in mut.derived_state.split(","):
+            for i in mut.metadata["derived_states"]:
                 md = mut_info2[i]
                 if md["mutation_type"] == 1:
                     assert i in muts1

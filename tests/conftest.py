@@ -304,7 +304,7 @@ class HelperFunctions:
                 )
                 yield ts
                 mts = msprime.sim_mutations(
-                    ts, model=msprime.SLiMMutationModel(type=0), rate=mutrate
+                    ts, model=msprime.SLiMv6MutationModel(), rate=mutrate
                 )
                 yield mts
                 seed += 1

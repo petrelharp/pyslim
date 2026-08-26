@@ -8,6 +8,8 @@ import tskit
 from ._version import *  # noqa F403
 from .provenance import get_environment, slim_provenance_version
 
+_INDIVIDUAL_FLAG_MIGRATED_DEPRECATED = np.uint32(1 << 0)
+
 
 def is_vacant_num_bytes(num_chromosomes):
     """
@@ -120,6 +122,10 @@ _raw_slim_metadata_schemas = {
                             "description": "The model type used for the last part of this simulation (WF or nonWF).",
                             "enum": ["WF", "nonWF"],
                             "type": "string",
+                        },
+                        "mutrun_count_hint": {
+                            "type": "integer",
+                            "description": "An optional hint regarding the number of mutation runs to use in SLiM; for SLiM internal use only.",
                         },
                         "name": {
                             "description": "The SLiM species name represented by this tree sequence.",
@@ -346,7 +352,24 @@ _raw_slim_metadata_schemas = {
     },
     "edge": None,
     "site": None,
-    "mutation": None,
+    "mutation": {
+        "$schema": "http://json-schema.org/schema#",
+        "additionalProperties": False,
+        "codec": "struct",
+        "type": "object",
+        "description": "SLiM schema for representing binary derived state data in mutation metadata (the metadata for each unique SLiM mutation is stored in top-level metadata).",
+        "examples": [{"derived_states": [0, 1, 17]}],
+        "properties": {
+            "derived_states": {
+                "index": 1,
+                "type": "array",
+                "noLengthEncodingExhaustBuffer": True,
+                "description": "An array of SLiM mutation IDs (int64t), representing the (stacked) mutations contained by the derived state for the mutation.",
+                "items": {"binaryFormat": "q", "type": "number"},
+            }
+        },
+        "required": ["derived_states"],
+    },
     "node": {
         "$schema": "http://json-schema.org/schema#",
         "additionalProperties": False,
@@ -379,7 +402,6 @@ _raw_slim_metadata_schemas = {
         "examples": [
             {
                 "age": -1,
-                "flags": 0,
                 "pedigree_id": 123,
                 "pedigree_p1": 12,
                 "pedigree_p2": 23,
@@ -400,12 +422,6 @@ _raw_slim_metadata_schemas = {
                 "tagL4": False,
             }
         ],
-        "flags": {
-            "SLIM_INDIVIDUAL_METADATA_MIGRATED": {
-                "description": "Whether this individual was a migrant, either in the tick when the tree sequence was written out (if the individual was alive then), or in the tick of the last time they were Remembered (if not).",
-                "value": 1,
-            }
-        },
         "properties": {
             "pedigree_id": {
                 "index": 1,
@@ -425,104 +441,98 @@ _raw_slim_metadata_schemas = {
                 "binaryFormat": "q",
                 "description": "The 'pedigree ID' of this individual's second parent in SLiM.",
             },
-            "age": {
-                "index": 4,
-                "type": "integer",
-                "binaryFormat": "i",
-                "description": "The age of this individual, either when the tree sequence was written out (if the individual was alive then), or the last time they were Remembered (if not).",
-            },
-            "subpopulation": {
-                "index": 5,
-                "type": "integer",
-                "binaryFormat": "i",
-                "description": "The ID of the subpopulation the individual was part of, either when the tree sequence was written out (if the individual was alive then), or the last time they were Remembered (if not).",
-            },
-            "sex": {
-                "index": 6,
-                "type": "integer",
-                "binaryFormat": "i",
-                "description": "The sex of the individual (0 for female, 1 for male, -1 for hermaphrodite).",
-            },
-            "flags": {
-                "index": 7,
-                "type": "integer",
-                "binaryFormat": "I",
-                "description": "Other information about the individual: see 'flags'.",
-            },
             "tag": {
-                "index": 8,
+                "index": 4,
                 "type": "integer",
                 "binaryFormat": "q",
                 "description": "The `tag` property of this individual; INT64_MIN if unset.",
             },
             "tagF": {
-                "index": 9,
+                "index": 5,
                 "type": "number",
                 "binaryFormat": "d",
                 "description": "The `tagF` property of this individual; -DBL_MAX if unset.",
             },
+            "age": {
+                "index": 6,
+                "type": "integer",
+                "binaryFormat": "i",
+                "description": "The age of this individual, either when the tree sequence was written out (if the individual was alive then), or the last time they were Remembered (if not).",
+            },
+            "subpopulation": {
+                "index": 7,
+                "type": "integer",
+                "binaryFormat": "i",
+                "description": "The ID of the subpopulation the individual was part of, either when the tree sequence was written out (if the individual was alive then), or the last time they were Remembered (if not).",
+            },
+            "sex": {
+                "index": 8,
+                "type": "integer",
+                "binaryFormat": "h",
+                "description": "The sex of the individual (0 for female, 1 for male, -1 for hermaphrodite).",
+            },
             "tagL0_set": {
-                "index": 10,
+                "index": 9,
                 "type": "boolean",
                 "binaryFormat": "?",
                 "description": "A flag indicating whether the `tagL0` property is set; if false, accessing `tagL0` is invalid.",
             },
             "tagL0": {
-                "index": 11,
+                "index": 10,
                 "type": "boolean",
                 "binaryFormat": "?",
                 "description": "The `tagL0` property of this individual; only valid if `tagL0_set` is true.",
             },
             "tagL1_set": {
-                "index": 12,
+                "index": 11,
                 "type": "boolean",
                 "binaryFormat": "?",
                 "description": "A flag indicating whether the `tagL1` property is set; if false, accessing `tagL1` is invalid.",
             },
             "tagL1": {
-                "index": 13,
+                "index": 12,
                 "type": "boolean",
                 "binaryFormat": "?",
                 "description": "The `tagL1` property of this individual; only valid if `tagL1_set` is true.",
             },
             "tagL2_set": {
-                "index": 14,
+                "index": 13,
                 "type": "boolean",
                 "binaryFormat": "?",
                 "description": "A flag indicating whether the `tagL2` property is set; if false, accessing `tagL2` is invalid.",
             },
             "tagL2": {
-                "index": 15,
+                "index": 14,
                 "type": "boolean",
                 "binaryFormat": "?",
                 "description": "The `tagL2` property of this individual; only valid if `tagL2_set` is true.",
             },
             "tagL3_set": {
-                "index": 16,
+                "index": 15,
                 "type": "boolean",
                 "binaryFormat": "?",
                 "description": "A flag indicating whether the `tagL3` property is set; if false, accessing `tagL3` is invalid.",
             },
             "tagL3": {
-                "index": 17,
+                "index": 16,
                 "type": "boolean",
                 "binaryFormat": "?",
                 "description": "The `tagL3` property of this individual; only valid if `tagL3_set` is true.",
             },
             "tagL4_set": {
-                "index": 18,
+                "index": 17,
                 "type": "boolean",
                 "binaryFormat": "?",
                 "description": "A flag indicating whether the `tagL4` property is set; if false, accessing `tagL4` is invalid.",
             },
             "tagL4": {
-                "index": 19,
+                "index": 18,
                 "type": "boolean",
                 "binaryFormat": "?",
                 "description": "The `tagL4` property of this individual; only valid if `tagL4_set` is true.",
             },
             "per_trait": {
-                "index": 20,
+                "index": 19,
                 "type": "array",
                 "length": 1,  # MAY NEED TO BE CHANGED (in SLiM code is "%d")
                 "items": {
@@ -551,11 +561,11 @@ _raw_slim_metadata_schemas = {
             "pedigree_id",
             "pedigree_p1",
             "pedigree_p2",
+            "tag",
+            "tagF",
             "age",
             "subpopulation",
             "sex",
-            "tag",
-            "tagF",
             "tagL0_set",
             "tagL0",
             "tagL1_set",
@@ -566,7 +576,6 @@ _raw_slim_metadata_schemas = {
             "tagL3",
             "tagL4_set",
             "tagL4",
-            "flags",
             "per_trait",
         ],
     },
@@ -801,7 +810,7 @@ def default_slim_metadata(name, num_chromosomes=1, num_traits=1, **kwargs):
     elif name == "site":
         out = None
     elif name == "mutation":
-        out = None
+        out = {"derived_states": []}
     elif name == "mutation_list_entry":
         out = {
             "mutation_id": 0,
@@ -824,7 +833,6 @@ def default_slim_metadata(name, num_chromosomes=1, num_traits=1, **kwargs):
             "age": -1,
             "subpopulation": tskit.NULL,
             "sex": -1,
-            "flags": 0,
             "pedigree_p1": tskit.NULL,
             "pedigree_p2": tskit.NULL,
             "tag": np.iinfo(np.int64).min,
@@ -2019,9 +2027,11 @@ def update_tables(tables):
             tables.individuals.metadata_schema = new_schema
             # new(er) additions are pedigree_pX in 0.7
             # and per_trait in 1.0
+            # also flags got removed in 1.0
             defaults = default_slim_metadata("individual", num_traits=num_traits)
             for ind in inds:
                 md = ind.metadata
+                flags = ind.flags
                 for k in [
                     "pedigree_p1",
                     "pedigree_p2",
@@ -2039,9 +2049,17 @@ def update_tables(tables):
                     "tagL4_set",
                 ]:
                     md.setdefault(k, defaults[k])
+                assert "flags" in md
+                # MIGRATED got moved over in 1.0, and previous flag was =1
+                flags |= (
+                    pyslim.INDIVIDUAL_MIGRATED
+                    if (md["flags"] & _INDIVIDUAL_FLAG_MIGRATED_DEPRECATED > 0)
+                    else 0
+                )
+                del md["flags"]
                 if "per_trait" not in md:
                     md["per_trait"] = copy.deepcopy(defaults["per_trait"])
-                tables.individuals.append(ind.replace(metadata=md))
+                tables.individuals.append(ind.replace(metadata=md, flags=flags))
 
         old_schema = _old_metadata_schema("mutation", file_version)
         if old_schema is not None:
@@ -2051,8 +2069,8 @@ def update_tables(tables):
                 muts.metadata_schema = old_schema
             tables.mutations.metadata_schema = slim_metadata_schemas["mutation"]
             for mut in muts:
-                # drop metadata: it should have been copied into top-level above
-                tables.mutations.append(mut.replace(metadata=None))
+                md = {"derived_states": [int(j) for j in mut.derived_state.split(",")]}
+                tables.mutations.append(mut.replace(metadata=md))
 
         if file_version == "0.1":
             # shift times

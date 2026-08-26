@@ -292,7 +292,7 @@ with warnings.catch_warnings(record=True) as w:
     mts = msprime.sim_mutations(
                rts,
                rate=mut_rate / gt,
-               model=msprime.SLiMMutationModel(type=0),
+               model=msprime.SLiMv6MutationModel(),
                keep=True,
                start_time=100,
     )

@@ -314,7 +314,7 @@ class TestProvenance(tests.PyslimTestCase):
         # Starting in 1.0: per_trait
         for a, b in zip(ts.individuals(), pts.individuals()):
             if file_version not in ("0.1", "0.2", "0.3", "0.4"):
-                for k in ("pedigree_id", "age", "subpopulation", "sex", "flags"):
+                for k in ("pedigree_id", "age", "subpopulation", "sex"):
                     assert a.metadata[k] == b.metadata[k]
                 if file_version not in ("0.5", "0.6"):
                     for k in ("pedigree_p1", "pedigree_p2"):
@@ -337,10 +337,13 @@ class TestProvenance(tests.PyslimTestCase):
     def verify_populations_consistency(self, ts, pts, file_version):
         ts.tables.populations.assert_equals(pts.tables.populations, ignore_metadata=True)
         # This has a whole bunch of things, none of which are required.
-        for a, b in zip(ts.individuals(), pts.individuals()):
+        # Also metadata can be None, for unused populations.
+        for a, b in zip(ts.populations(), pts.populations()):
             if file_version not in ("0.1", "0.2", "0.3", "0.4"):
-                for k in a.metadata:
-                    assert a.metadata[k] == b.metadata[k]
+                assert (a.metadata is None) == (b.metadata is None)
+                if a.metadata is not None:
+                    for k in a.metadata:
+                        assert a.metadata[k] == b.metadata[k]
 
     def test_convert_0_1_files(self):
         for ts in self.get_0_1_slim_examples():

@@ -91,7 +91,7 @@ next_id = pyslim.next_slim_mutation_id(rts)
 rts = pyslim.add_mutation_metadata(
         msprime.sim_mutations(
             rts, rate=1e-8, random_seed=7, keep=True,
-            model=msprime.SLiMMutationModel(type=0, next_id=next_id)
+            model=msprime.SLiMv6MutationModel(next_id=next_id)
         )
 )
 
@@ -142,7 +142,7 @@ new_ts = msprime.sim_ancestry(
               random_seed=9)
 new_ts = msprime.sim_mutations(
                  new_ts, rate=1e-8, random_seed=10, keep=True,
-                 model=msprime.SLiMMutationModel(type=0)
+                 model=msprime.SLiMv6MutationModel()
         )
 new_tables = new_ts.dump_tables()
 # check that the spurious samples are 20000 and 20001

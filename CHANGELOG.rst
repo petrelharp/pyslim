@@ -2,6 +2,12 @@
 [1.1.2] - 2026-XX-XX
 ********************
 
+Major update release to support the release of SLiM v6.0. The main update to
+SLiM is support for traits, which accompanied a number of changes to metadata,
+particularly mutation metadata. For more information see
+https://tskit.dev/pyslim/docs/latest/previous_versions.html
+
+
 **Breaking changes**:
 
 - The release of SLiM 6.0, changes to metadata (see below) mean that accessing
@@ -20,6 +26,11 @@
   way to access this information is by obtaining the SLiM ID-to-metadata dict
   returned by `pyslim.mutation_metadata(ts)`.
 
+- The SLiM mutation IDs represented by each tskit mutation should no longer be
+  read in from the `derived_state` property, but instead from metadata.
+  (However, SLiM still writes these out in text to the `derived_state`
+  entry as before.)
+
 - Previously, `msprime.sim_mutations` with the `msprime.SLiMMutationModel`
   would record SLiM metadata along with each new mutation. However, msprime
   does not modify top-level metadata, and so the method `add_mutation_metadata`
@@ -32,6 +43,10 @@
   in the model. The methods `slim_tree_sequence_metadata_schema` and
   `slim_individual_metadata_schema` can be used to produce correct schema.
 
+- Individual metadata no longer has a `flags` component; the one flag we did set here
+  (`pyslim.INDIVIDUAL_FLAG_MIGRATED`) is now recorded, as `pyslim.INDIVIDUAL_MIGRATED`,
+  in `individual.flags` (rather than `individual.metadata['flags']`).
+
 **Bug fixes:**
 
 - In some previous versions, converting files produced by a yet-older version of SLiM
@@ -43,6 +58,7 @@
 - Since verison 1.1, the value of `pyslim.INDIVIDUAL_FLAG_MIGRATED` has been 2,
   when in fact it should have been 1, so code using this flag to detect
   migrants would have been wrong (and should have found no migrants, ever).
+  (Also, this flag is now deprecated; see above.)
 
 **New features**:
 

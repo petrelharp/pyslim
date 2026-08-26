@@ -203,13 +203,6 @@ These are the possible values for ``individual.metadata["sex"]``:
 .. autodata:: INDIVIDUAL_TYPE_MALE
 ```
 
-This is a flag used in ``individual.metadata["flags"]``
-(*note*: this is *not* used in `individual.flags`, which is different!):
-
-```{eval-rst}
-.. autodata:: INDIVIDUAL_FLAG_MIGRATED
-```
-
 Finally, these are used in ``individual.flags``:
 
 ```{eval-rst}
@@ -218,4 +211,6 @@ Finally, these are used in ``individual.flags``:
 .. autodata:: INDIVIDUAL_REMEMBERED
 
 .. autodata:: INDIVIDUAL_RETAINED
+
+.. autodata:: INDIVIDUAL_MIGRATED
 ```

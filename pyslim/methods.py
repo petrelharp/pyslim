@@ -1,3 +1,4 @@
+import functools
 import warnings
 
 import msprime
@@ -427,7 +428,7 @@ def add_mutation_metadata(ts, mutation_type=0, remove_unused=False):
     Returns a new tree sequence with default information added to the top-level metadata
     for each mutation in the tree sequence that does not already have this information.
     To do this, mutations must be in SLiM format, as for instance produced by
-    :class:`msprime.SLiMMutationModel`. Any information about SLiM mutations already
+    :class:`msprime.SLiMv6MutationModel`. Any information about SLiM mutations already
     in top-level metadata will remain unchanged.
 
     To do this, this method looks for all SLiM IDs that are found in the derived
@@ -475,7 +476,7 @@ def add_mutation_metadata_tables(tables, mutation_type=0, remove_unused=False):
     mut_ids = [
         (int(j), mut.time)
         for mut in tables.mutations
-        for j in mut.derived_state.split(",")
+        for j in mut.metadata["derived_states"]
     ]
     mut_ids.sort()
     mut_ids = np.array(mut_ids, dtype="int")  # floors times
@@ -548,19 +549,20 @@ def convert_alleles(ts):
     mut_ids = np.array([x["mutation_id"] for x in mut_metadata.values()], dtype="int")
     alleles = np.array([x["nucleotide"] for x in mut_metadata.values()], dtype="int")
     # mut_inds will map from tskit-mutations to slim-mutations
-    mut_inds = ts.mutations_derived_state.copy()
-    num_stacked = np.strings.count(mut_inds, ",")
-    mut_inds[num_stacked > 0] = "-1"
-    mut_inds = mut_inds.astype("int", copy=False)
+    mut_inds = np.array([mut.metadata["derived_states"][0] for mut in ts.mutations()])
+    num_stacked = np.array(
+        [len(mut.metadata["derived_states"]) for mut in ts.mutations()]
+    )
+    mut_inds[num_stacked > 0] = -1
     for k in np.where(num_stacked > 0)[0]:
         mut = ts.mutation(k)
         if mut.parent == tskit.NULL:
             pids = []
         else:
-            pids = ts.mutation(mut.parent).derived_state.split(",")
+            pids = ts.mutation(mut.parent).metadata["derived_states"]
         x = [
-            (mut_metadata[int(i)]["slim_time"], i not in pids, int(i), j)
-            for j, i in enumerate(mut.derived_state.split(","))
+            (mut_metadata[i]["slim_time"], i not in pids, i, j)
+            for j, i in enumerate(mut.metadata["derived_states"])
         ]
         x.sort()
         mut_inds[k] = x[-1][2]
@@ -650,11 +652,11 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
                 pds = []
             else:
                 pa = states[mut.parent]
-                pds = ts.mutation(mut.parent).derived_state.split(",")
+                pds = ts.mutation(mut.parent).metadata["derived_states"]
             this_da = pa
             max_time = -np.inf
-            for i in mut.derived_state.split(","):
-                md = mut_info[int(i)]
+            for i in mut.metadata["derived_states"]:
+                md = mut_info[i]
                 da = md["nucleotide"]
                 if da == -1 or not keep:
                     if i in muts:
@@ -1210,7 +1212,7 @@ def next_slim_mutation_id(ts):
     Returns the next unused SLiM mutation ID for this tree sequence. This is useful
     because if you want to add more mutations to your SLiM tree sequence using
     :func:`msprime.sim_mutations`, you may need to specify the parameter
-    `next_id` in your :class:`msprime.SLiMMutationModel` to be larger than any
+    `next_id` in your :class:`msprime.SLiMv6MutationModel` to be larger than any
     existing mutation IDs. Setting `next_id` equal to the output of this
     function will allow the mutated tree sequence to be read in by SLiM.
     To do this, recall that the "derived state" of SLiM's mutations are
@@ -1218,19 +1220,18 @@ def next_slim_mutation_id(ts):
     states and returns one larger than the largest integer found. It will return an error
     if it encounters derived states that are not comma-separated strings of integers.
     """
-    max_id = 0
-    for mut in ts.mutations():
-        ds = mut.derived_state
-        if len(ds) > 0:
-            for d in ds.split(","):
-                try:
-                    max_id = max(max_id, int(d))
-                except ValueError:
-                    raise ValueError(
-                        f"The derived state of a mutation ({ds}) in the tree "
-                        "sequence is not a comma-separated list of values "
-                        "coercible to int. This is not a valid SLiM tree sequence."
-                    )
+    max_id = -1
+    if ts.num_mutations > 0:
+        try:
+            max_id = functools.reduce(
+                max,
+                (x for mut in ts.mutations() for x in mut.metadata["derived_states"]),
+                -1,
+            )
+        except TypeError:
+            raise ValueError(
+                "The mutation metadata in this tree sequence is not in proper format."
+            )
     return max_id + 1
 
 
@@ -1378,7 +1379,9 @@ def _annotate_sites_mutations(tables, ts_metadata):
     ]
     ts_metadata["SLiM_mutation_list"] = mutation_list
     tables.metadata = ts_metadata
-    dsb, dso = tskit.pack_bytes([str(j).encode() for j in range(num_mutations)])
+    mut_ids = np.arange(num_mutations, dtype="int64")
+    dsb, dso = tskit.pack_bytes([str(j).encode() for j in mut_ids])
+    mdb, mdo = tskit.pack_bytes([np.frombuffer(j, dtype="int8") for j in mut_ids])
     tables.mutations.set_columns(
         site=tables.mutations.site,
         node=tables.mutations.node,
@@ -1386,6 +1389,8 @@ def _annotate_sites_mutations(tables, ts_metadata):
         derived_state=dsb,
         derived_state_offset=dso,
         parent=tables.mutations.parent,
+        metadata=mdb,
+        metadata_offset=mdo,
     )
     tables.sites.set_columns(
         position=tables.sites.position,

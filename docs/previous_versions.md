@@ -29,7 +29,9 @@ tables = ts.dump_tables()
 
 Release 1.2 goes along with SLiM v6, which introduces support for traits.
 It also changes the format for storing mutation metadata: now this is stored
-in top-level metadata. 
+in top-level metadata, and the SLiM mutation IDs are now stored in mutation metadata.
+These mutation IDs are also still saved by SLiM as a comma-separated string to the
+derived state of each mutation, but this should not be relied on.
 
 1. Each time python evaluates ``ts.metadata`` (e.g., using ``ts.metadata["SLiM"]``)
 a new copy of the metadata dict is decoded and returned. In large SLiM simulations,
@@ -48,29 +50,29 @@ In particular:
       as an alternative to the tree sequence.
 
 2. If you are using `msprime` to generate mutations, you need to use
-{func}`.add_mutation_metadata` after generating mutations to add the
-information about these that SLiM expects to top-level metadata.
-For instance:
+{class}`msprime.SLiMv6MutationModel` instead of {class}`msprime.SLiMMutationModel`.
+You also now need to use {func}`.add_mutation_metadata` after generating
+mutations to add the information about these that SLiM expects to top-level
+metadata. For instance:
 ```{code-cell}
 next_id = pyslim.next_slim_mutation_id(ts)
 ts = pyslim.add_mutation_metadata(
         msprime.sim_mutations(
            ts,
            rate=1e-8,
-           model=msprime.SLiMMutationModel(type=0, next_id=next_id),
+           model=msprime.SLiMv6MutationModel(next_id=next_id),
         ),
         mutation_type=0,
 )
 ```
-Here the ``mutation_type`` argument to {func}`.add_mutation_metadata`
-is the important one; the ``type`` argument to ``SLiMMutationModel``
-is now deprecated, and will be effectively ignored.
+Furthermore, the ``mutation_type`` argument to {func}`.add_mutation_metadata`
+replaces the previous ``type`` argument to {class}`msprime.SLiMMutationModel`.
 
 3. Instead of looking up metadata for mutations in `mut.metadata`, you need
 to pull this information out of top-level metadata using the SLiM ID as a key.
 In brief, if `mut` is a mutation, then you should replace
 `mut.metadata["mutation_list"][j]`
-with `mut_metadata[int(mut.derived_state.split(",")[j])]`,
+with `mut_metadata[mut.metadata["derived_states"][j]]`,
 where `mut_metadata` is the output of {func}`.mutation_metadata`.
 For instance, where before you might have done:
 ```python
@@ -83,8 +85,8 @@ Now, you would do:
 ```{code-cell}
 mut_metadata = pyslim.mutation_metadata(ts)
 mut = ts.mutation(0)
-for k in mut.derived_state.split(","):
-    md = mut_metadata[int(k)]
+for k in mut.metadata["derived_states"]:
+    md = mut_metadata[k]
     print(f"SLiM ID: {k}")
     print(f"Metadata: {md}")
 ```
