@@ -25,9 +25,13 @@ initialize() {
 		initializeRecombinationRate(1e-5);
 		initializeGenomicElement(g1, 0, length-1);
 	}
+	letters = strsplit("abcdefghijklmnopqrstuvwxyz", "");
 	for (id in max(ids) + 1:100) {
 		length = 100 + id;
-		initializeChromosome(id, length, "A", "A" + asString(id));
+		// chromosome IDs are restricted to 3 characters
+		strid = "A" + repEach(letters, 26)[id] + letters[asInteger(id % 26)];
+		catn(strid);
+		initializeChromosome(id, length, "A", strid);
 		initializeMutationRate(1e-5);
 		initializeRecombinationRate(1e-5);
 		initializeGenomicElement(g1, 0, length - 1);

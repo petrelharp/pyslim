@@ -374,7 +374,8 @@ you can use the {func}`msprime.sim_mutations` function, which returns a new tree
 These are added to each branch of the tree sequence
 at the rate per unit time that you request,
 as depicted in {numref}`figure {number} <pedigree_mutate>`.
-We'll add these using the {class}`msprime.SLiMMutationModel`, so that the file can be read back into SLiM,
+We'll add these using the {class}`msprime.SLiMv6MutationModel` (note the `v6` in that name!),
+so that the file can be read back into SLiM,
 but any of the other mutation models in msprime could be used.
 This works as follows, starting with the tree sequence
 produced above by recapitation:
@@ -385,7 +386,7 @@ ts = pyslim.add_mutation_metadata(
         msprime.sim_mutations(
            sts,
            rate=1e-8,
-           model=msprime.SLiMMutationModel(type=0, next_id=next_id),
+           model=msprime.SLiMv6MutationModel(next_id=next_id),
            keep=True,
         ),
         mutation_type=0,
@@ -416,7 +417,7 @@ What's going on here? Let's step through the code.
     This is because SLiM mutations need a "mutation type",
     and it makes the most sense if we add a type that was unused in the simulation.
     In this example we don't have any existing mutation types,
-    so we can safely use ``type=0``, producing mutations of type ``m0`` in SLiM.
+    so we can safely use ``mutation_type=0``, producing mutations of type ``m0`` in SLiM.
 
 
 (sec_output)=
@@ -428,7 +429,7 @@ which we can get with a call to {meth}`tskit.TreeSequence.write_vcf`.
 However, if we do that with this tree sequence, we'll get a malformed VCF,
 with empty strings in the REF column and a strange comma-separated list of integers
 in the ALT column. The reason for this is because we added mutations
-using the `SLiMMutationModel`, and has to do with how SLiM stores enough information
+using the {class}`msprime.SLiMv6MutationModel`, and has to do with how SLiM stores enough information
 in the tree sequence to be able to load it back in.
 So, to write out valid VCF with nucleotides for alleles,
 we need to (1) if the SLiM simulation was not a nucleotide model, add nucleotides
@@ -484,29 +485,26 @@ and so the [metadata](sec_metadata) about these is stored in top-level metadata,
 rather than along with the tskit mutations.
 [](sec_tutorial_selected_mutations) has a more in-depth example, but here is a quick overview.
 To print out the information about each SLiM mutation "carried"
-by a given tskit mutation, whose SLiM IDs are stored in the `derived_state`
-as a comma-separated string, we'd do:
+by a given tskit mutation, whose SLiM IDs are stored in the mutation's metadata
+under `"derived_states"`, we'd do:
 ```{code-cell}
 :tags: ["remove-output"]
 mut_metadata = pyslim.mutation_metadata(ts)
 
 mut = ts.mutation(0)
-for x in mut.derived_state.split(","):
-    print(mut_metadata[int(x)])
+for x in mut.metadata["derived_states"]:
+    print(mut_metadata[x])
 ```
 ```{code-cell}
 :tags: ["remove-input"]
 mut_metadata = pyslim.mutation_metadata(ts)
 
 mut = ts.mutation(0)
-for x in mut.derived_state.split(","):
-    util.pp(mut_metadata[int(x)])
+for x in mut.metadata["derived_states"]:
+    util.pp(mut_metadata[x])
 ```
 See [](sec_tutorial_selected_mutations) for an example where a tskit mutation
 carries more than one (stacked) SLiM mutation.
-**Note:** the {func}`.mutation_metadata`-returned dictionary
-is indexed by **ints**, not strings, so be sure to convert your
-SLiM IDs to ints before looking them up!
 
 
 (sec_extracting_individuals)=
@@ -700,7 +698,7 @@ rts = pyslim.recapitate(
 )
 ts = msprime.sim_mutations(
                     rts, rate=1e-8,
-                    model=msprime.SLiMMutationModel(type=0),
+                    model=msprime.SLiMv6MutationModel(),
                     random_seed=7
 )
 ```
@@ -1080,20 +1078,21 @@ see [](sec_vignette_coalescent_diversity).
 ts = pyslim.add_mutation_metadata(
         msprime.sim_mutations(
                 ts, rate=1e-8,
-                model=msprime.SLiMMutationModel(type=0),
+                model=msprime.SLiMv6MutationModel(),
                 random_seed=9
         ),
         mutation_type=0,
 )
 ```
 The resulting mutations are in SLiM format
-because we used {class}`msprime.SLiMMutationModel`
+because we used {class}`msprime.SLiMv6MutationModel`
 Now, each `mutation` object in the tree sequence represents
-some number of SLiM mutations, whose SLiM IDs are stored in the `derived_state`.
+some number of SLiM mutations, whose SLiM IDs are stored in the mutation's `metadata`
+(also in the `derived_state`, but it's recommended to use `metadata`).
 For instance, here's which SLiM mutation(s) the first mutation
 in the tree sequence represents:
 ```{code-cell}
-ds = ts.mutation(0).derived_state
+ds = ts.mutation(0).metadata["derived_states"]
 print(f"SLiM IDs: {ds}")
 ```
 To see the information about these, we pull their information out
@@ -1103,13 +1102,13 @@ indexed by the SLiM IDs:
 ```{code-cell}
 :tags: ["remove-output"]
 mut_metadata = pyslim.mutation_metadata(ts)
-for sid in ds.split(","):
-    print(mut_metadata[int(sid)])
+for sid in ds:
+    print(mut_metadata[sid])
 ```
 ```{code-cell}
 :tags: ["remove-input"]
-for sid in ds.split(","):
-    util.pp(mut_metadata[int(sid)])
+for sid in ds:
+    util.pp(mut_metadata[sid])
 ```
 
 Finally, we write this out to a file that can be loaded in to SLiM:
@@ -1173,7 +1172,7 @@ Now, mutations have a ``nucleotide`` property in metadata that is not ``-1``:
 :tags: ["remove-output"]
 mut_metadata = pyslim.mutation_metadata(ts)
 m = ts.mutation(0)
-md = [mut_metadata[int(k)] for k in m.derived_state.split(",")]
+md = [mut_metadata[k] for k in m.metadata["derived_states"]]
 print(m)
 for x in md:
     print(x)
@@ -1193,8 +1192,8 @@ by indexing the {data}`.NUCLEOTIDES` object:
 for k in range(3):
     m = ts.mutation(k)
     print(f"Mutation {k}: position {ts.site(m.site).position}, time {m.time}")
-    for sid in m.derived_state.split(","):
-        md = mut_metadata[int(sid)]
+    for sid in m.metadata["derived_states"]:
+        md = mut_metadata[sid]
         print(f"  nucleotide: {pyslim.NUCLEOTIDES[md['nucleotide']]}")
 ```
 
@@ -1245,7 +1244,7 @@ Here's the first mutation:
 :tags: ["remove-output"]
 mut_metadata = pyslim.mutation_metadata(ts)
 m = ts.mutation(0)
-md = [mut_metadata[int(k)] for k in m.derived_state.split(",")]
+md = [mut_metadata[k] for k in m.metadata["derived_states"]]
 print(m)
 for x in md:
     print(x)
@@ -1272,8 +1271,8 @@ and we can pull up information about that with the `ts.site( )` method:
 :tags: ["remove-output"]
 s = ts.site(m.site)
 md = [
-    mut_metadata[int(k)] for m in s.mutations
-                         for k in m.derived_state.split(",")
+    mut_metadata[k] for m in s.mutations
+                         for k in m.metadata["derived_states"]
 ]
 print(s)
 for x in md:
@@ -1287,12 +1286,11 @@ for x in md:
     util.pp(x)
 ```
 
-This mutation occurred at position 54 along the genome (from `site.position`)
+This mutation occurred at the position along the genome shown in `site.position`,
 which previously had no mutations (since `site.ancestral_state` is the empty string, `''`)
-and was given SLiM mutation ID 1997358 (`m.derived_state`).
-The metadata (`mut_metadata[1997358]`, a dict) tells us that
-the mutation has selection coefficient -0.1129 and occurred in population 1 in generation 999,
-which was 0 generations ago.
+and was given the SLiM mutation ID shown in `m.metadata["derived_states"]`.
+The metadata (with `x` the mutation ID, `mut_metadata[x]`, a dict) tells us
+the mutation's selection coefficient and which population and at what SLiM time it occurred.
 This is not a nucleotide model, so the nucleotide entry is `-1`.
 Note that `m.time` and the `slim_time` entry in metadata are in this case redundant:
 they contain the same information, but the first is in tskit time
@@ -1314,8 +1312,8 @@ for m in ts.mutations():
      break
 
 pm = ts.mutation(m.parent)
-md = [mut_metadata[int(k)] for k in m.derived_state.split(",")]
-pmd = [mut_metadata[int(k)] for k in pm.derived_state.split(",")]
+md = [mut_metadata[k] for k in m.metadata["derived_states"]]
+pmd = [mut_metadata[k] for k in pm.metadata["derived_states"]]
 
 print(m)
 for x in md:
@@ -1408,8 +1406,8 @@ mut_type = np.zeros(ts.num_sites)
 for j, s in enumerate(ts.sites()):
   mt = []
   for m in s.mutations:
-     for sid in m.derived_state.split(","):
-        md = mut_metadata[int(sid)]
+     for sid in m.metadata["derived_states"]:
+        md = mut_metadata[sid]
         mt.append(md["mutation_type"])
   if len(set(mt)) > 1:
      mut_type[j] = 3
@@ -1444,8 +1442,8 @@ Finally, let's pull out information on the allele with the largest selection coe
 ```{code-cell}
 :tags: ["remove-output"]
 sel_coeffs = np.array([
-        sum(mut_metadata[int(k)]["per_trait"][0]["effect_size"]
-            for k in m.derived_state.split(","))
+        sum(mut_metadata[k]["per_trait"][0]["effect_size"]
+            for k in m.metadata["derived_states"])
         for m in ts.mutations()
 ])
 which_max = np.argmax(sel_coeffs)

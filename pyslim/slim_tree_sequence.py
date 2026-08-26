@@ -14,9 +14,8 @@ def mutation_metadata(ts, check=True, ts_metadata=None):
     """
     Returns a dictionary whose keys are the numeric SLiM IDs of mutations,
     and whose values are metadata entries for those mutations.
-    *Note:* this is indexed by integers, not strings, so if you obtain SLiM IDs
-    from something like ``mut.derived_state.split(",")``, you must convert
-    the result to integers before looking up metadata!
+    These SLiM IDs are found in the metadata of tskit mutations:
+    for each mutation ``mut``, as ``mut.metadata["derived_states"]``.
 
     This is a simple extraction function that places the list of metadata entries
     stored in ``ts.metadata["SLiM_mutation_list"]`` in a dictionary
@@ -24,6 +23,10 @@ def mutation_metadata(ts, check=True, ts_metadata=None):
     and use the result in script, because calling this function many times
     (or, even just referring to ``ts.metadata`` many times)
     can slow down scripts considerably.
+
+    SLiM mutation IDs may also be present in ``mut.derived_state`` as a comma-separated
+    string, but accessing these from metadata is preferred because the derived
+    state may be changed (by {func}`.convert_alleles`).
 
     :param tskit.TreeSequence ts: The tree sequence.
     :param bool check: Whether to verify that all mutations are described in top-level
@@ -41,7 +44,7 @@ def mutation_metadata(ts, check=True, ts_metadata=None):
     ml.sort(key=lambda x: x["mutation_id"])
     out = {mut["mutation_id"]: mut for mut in ml}
     if check:
-        ids = {int(j) for x in ts.mutations_derived_state for j in x.split(",")}
+        ids = {j for mut in ts.mutations() for j in mut.metadata["derived_states"]}
         for k in ids:
             if k not in out:
                 raise ValueError(
@@ -136,10 +139,7 @@ def nucleotide_at(ts, node, position, time=None, mut_metadata=None):
     else:
         mut = ts.mutation(mut_id)
         _, k = max(
-            [
-                (mut_metadata[int(j)]["slim_time"], int(j))
-                for j in mut.derived_state.split(",")
-            ]
+            [(mut_metadata[j]["slim_time"], j) for j in mut.metadata["derived_states"]]
         )
         out = mut_metadata[k]["nucleotide"]
     return out

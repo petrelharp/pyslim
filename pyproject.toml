@@ -30,7 +30,7 @@ classifiers = [
 keywords = ["tree sequences", "tskit"]
 requires-python = ">=3.11"
 dependencies = [
-    "msprime>=1.0.1",
+    "msprime", # TODO update this to >1.4.2
     "tskit>=1.0.3",
     "numpy",
 ]
@@ -54,7 +54,7 @@ test = [
     "pytest-xdist",
     "filelock",
     "tskit",
-    "msprime",
+    "msprime @ git+https://github.com/petrelharp/msprime@slim_v6_muts",
     "pandas",
     "frozendict",
 ]

@@ -130,7 +130,7 @@ see {func}`.annotate` for more information.
 
 ## Add SLiM mutations
 
-Next, we're going to use the {class}`msprime.SLiMMutationModel` to add mutations
+Next, we're going to use the {class}`msprime.SLiMv6MutationModel` to add mutations
 to the tree sequence. These will carry SLiM metadata, but this metadata
 will say that the mutations are neutral. So, we'll then need to modify their metadata
 after the fact to have selection coefficients drawn from some distribution.
@@ -165,7 +165,7 @@ Here's how to add SLiM mutations with msprime:
 mut_map = msprime.RateMap(
            position=breaks,
            rate=[0.03e-8, 0.003e-8, 0.03e-8])
-mut_model = msprime.SLiMMutationModel(type=2)
+mut_model = msprime.SLiMv6MutationModel()
 ots = pyslim.add_mutation_metadata(
         msprime.sim_mutations(
             ots,
@@ -179,7 +179,7 @@ print(f"The tree sequence now has {ots.num_mutations} mutations, at "
       f"{ots.num_sites} distinct sites.")
 ```
 
-Note the ``type=2`` argument to {func}`.add_mutation_metadata`:
+Note the ``mutation_type=2`` argument to {func}`.add_mutation_metadata`:
 this means the mutations will be of type "m2" in SLiM (and, so you must
 initialize that mutation type in the recipe that loads this tree sequence in).
 
@@ -281,7 +281,7 @@ This runs quickly, since it's only 100 generations.
 First, let's look at what mutations are present.
 ```{code-cell}
 ts = tskit.load("vignette_annotated.trees")
-num_stacked = np.array([len(m.derived_state.split(",")) for m in ts.mutations()])
+num_stacked = np.array([len(m.metadata["derived_states"]) for m in ts.mutations()])
 init_time = ts.metadata['SLiM']['tick']
 old_mut = np.array([m.time > init_time - 1 - 1e-12 for m in ts.mutations()])
 assert sum(old_mut) == ots.num_mutations
@@ -316,8 +316,8 @@ num_nodes = np.array([len(x) for x in nodes_by_time])
 p = ts.sample_count_stat(nodes_by_time, lambda x: x/num_nodes, 2, windows='sites',
         strict=False, span_normalise=False, polarised=True)
 mut_metadata = pyslim.mutation_metadata(ts)
-s = np.array([sum([sum([mut_metadata[int(k)]["per_trait"][0]["effect_size"]
-                        for k in m.derived_state.split(",")])
+s = np.array([sum([sum([mut_metadata[k]["per_trait"][0]["effect_size"]
+                        for k in m.metadata["derived_states"]])
                   for m in site.mutations]) for site in ts.sites()])
 ```
 
@@ -397,8 +397,7 @@ neutral_mut_map = msprime.RateMap(
            position=breaks,
            rate=[2.97e-8, 2.997e-8, 2.97e-8])
 next_id = pyslim.next_slim_mutation_id(ts)
-neutral_mut_model = msprime.SLiMMutationModel(
-                                type=1,
+neutral_mut_model = msprime.SLiMv6MutationModel(
                                 next_id=next_id)
 mts = pyslim.add_mutation_metadata(
         msprime.sim_mutations(
@@ -429,7 +428,7 @@ and print a picture of it, with mutations labeled by their type:
 ```{code-cell}
 mut_metadata = pyslim.mutation_metadata(mts)
 for t in mts.trees():
- mt = [max([mut_metadata[int(k)]['mutation_type'] for k in m.derived_state.split(",")]) for m in t.mutations()]
+ mt = [max([mut_metadata[k]['mutation_type'] for k in m.metadata["derived_states"]]) for m in t.mutations()]
  if t.num_mutations > 12:
    break
 
@@ -485,33 +484,33 @@ There are indeed:
 :tags: ['remove-output']
 for site in mts.sites():
   if len(site.mutations) > 1:
-     types = [set([mut_metadata[int(k)]["mutation_type"] for k in mut.derived_state.split(",")])
+     types = [set([mut_metadata[k]["mutation_type"] for k in mut.metadata["derived_states"]])
               for mut in site.mutations]
      if max(map(len, types)) > 1:
         print(site)
         for mut in site.mutations:
             print(mut)
-            for k in mut.derived_state.split(","):
-                print(mut_metadata[int(k)])
+            for k in mut.metadata["derived_states"]:
+                print(mut_metadata[k])
 ```
 ```{code-cell}
 :tags: ['remove-input']
 for site in mts.sites():
   if len(site.mutations) > 1:
-     types = [set([mut_metadata[int(k)]["mutation_type"] for k in mut.derived_state.split(",")])
+     types = [set([mut_metadata[k]["mutation_type"] for k in mut.metadata["derived_states"]])
               for mut in site.mutations]
      if max(map(len, types)) > 1:
         util.pp(site)
         for mut in site.mutations:
             util.pp(mut)
-            for k in mut.derived_state.split(","):
-                util.pp(mut_metadata[int(k)])
+            for k in mut.metadata["derived_states"]:
+                util.pp(mut_metadata[k])
 ```
 
 In each of these, a neutral mutation has been put down on top of a selected mutation,
 but stacked, so that any samples inheriting either of these mutations carries
 the selected mutation.
-For more discussion of how this works, see {class}`msprime.SLiMMutationModel`.
+For more discussion of how this works, see {class}`msprime.SLiMv6MutationModel`.
 
 
 ## Diversity along the genome

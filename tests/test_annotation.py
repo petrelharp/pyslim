@@ -154,7 +154,6 @@ class TestAnnotate(tests.PyslimTestCase):
             assert np.array_equal(ind.location, [0, 0, 0])
             assert ind.flags == pyslim.INDIVIDUAL_ALIVE
             assert md["sex"] == pyslim.INDIVIDUAL_TYPE_HERMAPHRODITE
-            assert md["flags"] == 0
             assert md["pedigree_p1"] == tskit.NULL
             assert md["pedigree_p2"] == tskit.NULL
         for pop in ts.populations():
@@ -256,13 +255,14 @@ class TestAnnotate(tests.PyslimTestCase):
         rmut_info = pyslim.mutation_metadata(rts)
         assert len(mut_info) == len(rmut_info)
         # mutations may have changed order
-        tsm = {m.derived_state for m in ts.mutations()}
-        rtsm = {m.derived_state for m in rts.mutations()}
+        tsm = {m.derived_state: m.metadata["derived_states"] for m in ts.mutations()}
+        rtsm = {m.derived_state: m.metadata["derived_states"] for m in rts.mutations()}
         for x in tsm:
             assert x in rtsm
-            for sid in x.split(","):
-                x = mut_info[int(sid)].copy()
-                y = rmut_info[int(sid)]
+            assert tsm[x] == rtsm[x]
+            for sid in tsm[x]:
+                x = mut_info[sid].copy()
+                y = rmut_info[sid]
                 x["subpopulation"] = fwd_map[x["subpopulation"]]
                 assert x == y
 
@@ -308,12 +308,16 @@ class TestAnnotate(tests.PyslimTestCase):
             random_seed=100,
         )
         ts = msprime.sim_mutations(
-            ts, rate=1, random_seed=12, model=msprime.SLiMMutationModel(type=1)
+            ts, rate=1, random_seed=12, model=msprime.SLiMv6MutationModel()
         )
         assert ts.num_mutations > 0
         t = ts.dump_tables()
         t.metadata_schema = pyslim.slim_metadata_schemas["tree_sequence"]
         t.metadata = pyslim.default_slim_metadata("tree_sequence")
+        t.mutations.metadata_schema = pyslim.slim_metadata_schemas["mutation"]
+        t.mutations.clear()
+        for j, mut in enumerate(ts.mutations()):
+            t.mutations.append(mut.replace(metadata={"derived_states": [j]}))
         ts = t.tree_sequence()
         ts = pyslim.add_mutation_metadata(ts)
         with pytest.warns(Warning, match="already has.*metadata"):
@@ -863,7 +867,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 ts,
                 rate=1e-2,
                 random_seed=9,
-                model=msprime.SLiMMutationModel(type=1),
+                model=msprime.SLiMv6MutationModel(),
             ),
             mutation_type=1,
         )
@@ -1087,7 +1091,7 @@ class TestAddMutationMetadata(tests.PyslimTestCase):
     def test_add_mutation_metadata_errors(self):
         ts = msprime.sim_ancestry(10, random_seed=5)
         ts = msprime.sim_mutations(
-            ts, rate=5, random_seed=3, model=msprime.SLiMMutationModel(type=0)
+            ts, rate=5, random_seed=3, model=msprime.SLiMv6MutationModel()
         )
         # bad metadata schema
         t = ts.dump_tables()
@@ -1108,11 +1112,12 @@ class TestAddMutationMetadata(tests.PyslimTestCase):
     def test_add_mutation_metadata_mutation_type(self):
         ts = msprime.sim_ancestry(10, random_seed=5)
         ts = msprime.sim_mutations(
-            ts, rate=5, random_seed=3, model=msprime.SLiMMutationModel(type=0)
+            ts, rate=5, random_seed=3, model=msprime.SLiMv6MutationModel()
         )
         t = ts.dump_tables()
         t.metadata_schema = pyslim.slim_metadata_schemas["tree_sequence"]
         t.metadata = pyslim.default_slim_metadata("tree_sequence")
+        t.mutations.metadata_schema = pyslim.slim_metadata_schemas["mutation"]
         ts = t.tree_sequence()
         for k in (0, 1, 5):
             new_ts = pyslim.add_mutation_metadata(ts, mutation_type=k)
@@ -1197,7 +1202,7 @@ class TestAddMutationMetadata(tests.PyslimTestCase):
     def test_add_mutation_metadata_removes(self):
         ts = msprime.sim_ancestry(10, random_seed=5)
         ts = msprime.sim_mutations(
-            ts, rate=5, random_seed=3, model=msprime.SLiMMutationModel(type=0)
+            ts, rate=5, random_seed=3, model=msprime.SLiMv6MutationModel()
         )
         ts = pyslim.add_mutation_metadata(pyslim.annotate(ts, model_type="WF", tick=1))
         sts = ts.simplify([0, 1])
@@ -1207,7 +1212,7 @@ class TestAddMutationMetadata(tests.PyslimTestCase):
         mut_info = pyslim.mutation_metadata(ts)
         nmut_info = pyslim.mutation_metadata(nsts)
         mut_ids = np.unique(
-            [int(k) for mut in nsts.mutations() for k in mut.derived_state.split(",")]
+            [k for mut in nsts.mutations() for k in mut.metadata["derived_states"]]
         )
         assert len(mut_ids) == len(nsts.metadata["SLiM_mutation_list"])
         for k in mut_ids:
