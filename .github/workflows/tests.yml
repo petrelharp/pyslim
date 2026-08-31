@@ -84,7 +84,7 @@ jobs:
         uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8  # v6.0.0
         with:
           path: D:\a\pyslim\pyslim\SLiM
-          key: ${{runner.os}}-${{matrix.sys}}-${{matrix.env}}-key
+          key: ${{runner.os}}-${{matrix.sys}}-${{matrix.env}}-v1-key
 
       - name: Build SLiM (Windows)
         if: matrix.os == 'windows-latest' && steps.cache-slim.outputs.cache-hit != 'true'
