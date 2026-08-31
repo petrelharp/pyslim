@@ -53,8 +53,8 @@ test = [
     "pytest-cov",
     "pytest-xdist",
     "filelock",
-    "tskit",
     "msprime>=1.4.3",
+    "tskit>=1.0.3",
     "pandas",
     "frozendict",
 ]
@@ -62,7 +62,8 @@ test = [
 docs = [
     "jupyter-book<2",
     "matplotlib",
-    "msprime",
+    "msprime>=1.4.3",
+    "tskit>=1.0.3",
     "pandas",
     "plotnine",
     "sphinx-argparse",
