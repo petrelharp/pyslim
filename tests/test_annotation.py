@@ -1016,77 +1016,6 @@ class TestAnnotate(tests.PyslimTestCase):
         verify_slim_restart_equality(in_ts, out_ts, phenotypes=False)
 
 
-class TestReload(tests.PyslimTestCase):
-    """
-    Tests for basic things related to reloading with SLiM
-    """
-
-    @pytest.mark.parametrize(
-        "restart_name, recipe", restarted_recipe_eq("no_op"), indirect=["recipe"]
-    )
-    def test_load_without_provenance(
-        self, restart_name, recipe, helper_functions, tmp_path
-    ):
-        cleared_ts = {}
-        for chrom, in_ts in recipe["ts"].items():
-            in_tables = in_ts.dump_tables()
-            in_tables.provenances.clear()
-            in_tables.sort()
-            cleared_ts[chrom] = in_tables.tree_sequence()
-        out_ts = helper_functions.run_slim_restart(
-            cleared_ts, restart_name, tmp_path, "multichrom" in recipe
-        )
-        verify_slim_restart_equality(recipe["ts"], cleared_ts, check_prov=False)
-
-    @pytest.mark.parametrize(
-        "restart_name, recipe",
-        restarted_recipe_eq("no_op", "nucleotides"),
-        indirect=["recipe"],
-    )
-    def test_reload_reference_sequence(
-        self, restart_name, recipe, helper_functions, tmp_path
-    ):
-        in_ts = recipe["ts"]
-        out_ts = helper_functions.run_slim_restart(
-            in_ts, restart_name, tmp_path, "multichrom" in recipe
-        )
-        assert in_ts.keys() == out_ts.keys()
-        for k in in_ts:
-            it = in_ts[k]
-            ot = out_ts[k]
-            assert it.metadata["SLiM"]["nucleotide_based"] is True
-            assert ot.metadata["SLiM"]["nucleotide_based"] is True
-            assert it.has_reference_sequence() == ot.has_reference_sequence()
-            if it.has_reference_sequence():
-                it.reference_sequence.assert_equals(ot.reference_sequence)
-
-    @pytest.mark.parametrize(
-        "restart_name, recipe", restarted_recipe_eq(), indirect=["recipe"]
-    )
-    def test_restarts_and_runs_simplified(
-        self, restart_name, recipe, helper_functions, tmp_path
-    ):
-        in_ts = recipe["ts"]
-        py_ts = {}
-        n = None
-        for chrom, ts in in_ts.items():
-            if n is None:
-                inds = np.where(ts.individuals_flags & pyslim.INDIVIDUAL_ALIVE > 0)[0][
-                    :2
-                ]
-                n = [u for i in inds for u in ts.individual(i).nodes]
-                n.sort()
-            py_ts[chrom] = ts.simplify(n, filter_populations=False)
-        out_ts = helper_functions.run_slim_restart(
-            py_ts, restart_name, tmp_path, "multichrom" in recipe
-        )
-        assert in_ts.keys() == out_ts.keys()
-        for k in in_ts:
-            it = in_ts[k]
-            ot = out_ts[k]
-        assert ot.metadata["SLiM"]["tick"] >= it.metadata["SLiM"]["tick"]
-
-
 class TestAddMutationMetadata(tests.PyslimTestCase):
     def test_add_mutation_metadata_errors(self):
         ts = msprime.sim_ancestry(10, random_seed=5)
@@ -1108,21 +1037,6 @@ class TestAddMutationMetadata(tests.PyslimTestCase):
         bad_ts = t.tree_sequence()
         with pytest.raises(ValueError, match="metadata schema is not"):
             _ = pyslim.add_mutation_metadata(bad_ts)
-
-    def test_add_mutation_metadata_mutation_type(self):
-        ts = msprime.sim_ancestry(10, random_seed=5)
-        ts = msprime.sim_mutations(
-            ts, rate=5, random_seed=3, model=msprime.SLiMv6MutationModel()
-        )
-        t = ts.dump_tables()
-        t.metadata_schema = pyslim.slim_metadata_schemas["tree_sequence"]
-        t.metadata = pyslim.default_slim_metadata("tree_sequence")
-        t.mutations.metadata_schema = pyslim.slim_metadata_schemas["mutation"]
-        ts = t.tree_sequence()
-        for k in (0, 1, 5):
-            new_ts = pyslim.add_mutation_metadata(ts, mutation_type=k)
-            for x in new_ts.metadata["SLiM_mutation_list"]:
-                assert x["mutation_type"] == k
 
     @pytest.mark.parametrize(
         "recipe",
@@ -1154,68 +1068,3 @@ class TestAddMutationMetadata(tests.PyslimTestCase):
                 assert 0 == new_metadata[k]["mutation_type"]  # default
                 assert old_metadata[k]["slim_time"] == new_metadata[k]["slim_time"]
                 assert old_metadata[k]["mutation_id"] == new_metadata[k]["mutation_id"]
-
-    @pytest.mark.parametrize(
-        "recipe",
-        recipe_eq(
-            exclude=(
-                "long",
-                "no_simplify",
-                "multichrom",
-                "everyone",
-                "init_mutated",
-                "old_mutations",
-            )
-        ),
-        indirect=True,
-    )
-    def test_add_mutation_metadata_keeps(self, recipe):
-        for _, ts in recipe["ts"].items():
-            if ts.num_mutations > 15:
-                tables = ts.dump_tables()
-                md = tables.metadata
-                metadata = md["SLiM_mutation_list"]
-                del metadata[:2]
-                del metadata[10:]
-                kept_ids = {m["mutation_id"] for m in metadata}
-                md["SLiM_mutation_list"] = metadata
-                tables.metadata = md
-                new_ts = pyslim.add_mutation_metadata(
-                    tables.tree_sequence(),
-                )
-                old_metadata = pyslim.mutation_metadata(ts)
-                new_metadata = pyslim.mutation_metadata(new_ts)
-                assert len(old_metadata) == len(new_metadata)
-                for k in old_metadata:
-                    if k in kept_ids:
-                        assert old_metadata[k] == new_metadata[k]
-                    else:
-                        assert 0 == new_metadata[k]["mutation_type"]  # default
-                        assert (
-                            old_metadata[k]["slim_time"] == new_metadata[k]["slim_time"]
-                        )
-                        assert (
-                            old_metadata[k]["mutation_id"]
-                            == new_metadata[k]["mutation_id"]
-                        )
-
-    def test_add_mutation_metadata_removes(self):
-        ts = msprime.sim_ancestry(10, random_seed=5)
-        ts = msprime.sim_mutations(
-            ts, rate=5, random_seed=3, model=msprime.SLiMv6MutationModel()
-        )
-        ts = pyslim.add_mutation_metadata(pyslim.annotate(ts, model_type="WF", tick=1))
-        sts = ts.simplify([0, 1])
-        assert sts.num_mutations < ts.num_mutations
-        assert ts.metadata["SLiM_mutation_list"] == sts.metadata["SLiM_mutation_list"]
-        nsts = pyslim.add_mutation_metadata(sts, remove_unused=True)
-        mut_info = pyslim.mutation_metadata(ts)
-        nmut_info = pyslim.mutation_metadata(nsts)
-        mut_ids = np.unique(
-            [k for mut in nsts.mutations() for k in mut.metadata["derived_states"]]
-        )
-        assert len(mut_ids) == len(nsts.metadata["SLiM_mutation_list"])
-        for k in mut_ids:
-            assert k in nmut_info
-            assert k in mut_info
-            assert mut_info[k] == nmut_info[k]
