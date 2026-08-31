@@ -1929,6 +1929,7 @@ docs = [
     { name = "plotnine" },
     { name = "sphinx-argparse" },
     { name = "sphinx-issues" },
+    { name = "tskit" },
 ]
 lint = [
     { name = "prek" },
@@ -1963,7 +1964,6 @@ dev = [
     { name = "frozendict" },
     { name = "jupyter-book", specifier = "<2" },
     { name = "matplotlib" },
-    { name = "msprime" },
     { name = "msprime", specifier = ">=1.4.3" },
     { name = "pandas" },
     { name = "plotnine" },
@@ -1974,7 +1974,7 @@ dev = [
     { name = "ruff", specifier = "==0.15.1" },
     { name = "sphinx-argparse" },
     { name = "sphinx-issues" },
-    { name = "tskit" },
+    { name = "tskit", specifier = ">=1.0.3" },
     { name = "twine" },
     { name = "validate-pyproject", extras = ["all"] },
     { name = "zizmor", specifier = "==1.26.1" },
@@ -1982,11 +1982,12 @@ dev = [
 docs = [
     { name = "jupyter-book", specifier = "<2" },
     { name = "matplotlib" },
-    { name = "msprime" },
+    { name = "msprime", specifier = ">=1.4.3" },
     { name = "pandas" },
     { name = "plotnine" },
     { name = "sphinx-argparse" },
     { name = "sphinx-issues" },
+    { name = "tskit", specifier = ">=1.0.3" },
 ]
 lint = [
     { name = "prek", specifier = "==0.3.3" },
@@ -2005,7 +2006,7 @@ test = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
-    { name = "tskit" },
+    { name = "tskit", specifier = ">=1.0.3" },
 ]
 
 [[package]]
