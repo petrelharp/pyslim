@@ -74,9 +74,6 @@ def verify_slim_restart_equality(
         in_tables.assert_equals(out_tables, ignore_provenance=True)
 
 
-# This skipping is overly broad, but the output is *very* verbose and
-# it's hard to track down exactly what's failing in CI.
-@pytest.mark.skipif(sys.platform == "win32", reason="Issue #412")
 class TestAnnotate(tests.PyslimTestCase):
     """
     Tests for tools to annotate existing msprime-derived tree sequences.
