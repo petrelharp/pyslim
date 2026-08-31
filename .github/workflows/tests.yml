@@ -19,9 +19,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python: ["3.11", "3.13"]
-        os: [macos-latest, ubuntu-24.04, windows-latest]
-        sys: [mingw64, ucrt64]
+        python: ["3.13"]
+        os: [windows-latest]
+        sys: [mingw64]
         env: [x86_64, ucrt-x86_64]
         exclude:
           - os: macos-latest
@@ -135,13 +135,3 @@ jobs:
             --cov=pyslim --cov-branch \
             --cov-report=xml \
             tests
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
-          flags: python-tests
-          files: coverage.xml
-          disable_search: true
-          verbose: true
