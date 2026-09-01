@@ -67,10 +67,10 @@ and `ts.metadata["SLiM"]` contains information about the simulation:
     * `index`: the index of the trait in SLiM
     * `name`: the name in SLiM for the trait
     * `type`: `"additive"`, `"multiplicative"`, or `"logistic"`
-    * `baselineOffsetFromUser`: a value added to all traits
-    * `baselineOffsetFromSubstitutions`: the total effect of all substitutions on the traits
+    * `baselineOffsetF`, `baselineOffsetM`, `baselineOffsetH`: values added to all individuals, depending on their sex
+    * `substitutionOffsetF`, `substitutionOffsetM`, `substitutionOffsetH`: total effect of all substitutions on traits, by sex,
       at the time the tree sequence was saved
-    * `baselineAccumulation`: whether the effect of substitutions accumulate in that value
+    * `substitutionAccumulation`: whether the effect of substitutions accumulate in that value
     * `directFitnessEffect`: whether the trait has a direct effect on fitness
     * `individualOffsetMean`, `individualOffsetSD`: parameters governing the distribution of individual-level offsets
       (i.e., "environment" effects)
@@ -144,17 +144,14 @@ and refer to that object, since otherwise you can incur runtime penalties
 for decoding and copying the metadata every time you call `ts.metadata`.
 This can be substantial, given the amount of mutation information
 in top-level metadata.
-For instance, to subtract baseline offsets from individual's trait values,
+For instance, to the top-level "tick" value from each node's time,
 we might do:
 ```{code-cell}
-md = ts.metadata
-traits = md["SLiM"]["traits"]
-values = [
-    [x['phenotype'] - y["baselineOffsetFromUser"] for x, y in zip(ind.metadata['per_trait'], traits)]
-    for ind in ts.individuals()
-]
+ts_metadata = ts.metadata
+t = ts_metadata["SLiM"]["tick"]
+adjusted_ticks = [n.time - t for n in ts.nodes()]
 ```
-If we instead inserted ``ts.metadata["SLiM"]["traits"]`` directly into the loop,
+If we instead inserted ``ts.metadata["SLiM"]["tick"]`` directly into the loop,
 this would become infeasibly slow.
 
 In some more detail:

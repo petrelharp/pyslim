@@ -1914,6 +1914,8 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
     { name = "ruff" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sphinx-argparse" },
     { name = "sphinx-issues" },
     { name = "tskit" },
@@ -1948,6 +1950,8 @@ test = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "tskit" },
 ]
 
@@ -1972,6 +1976,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
     { name = "ruff", specifier = "==0.15.1" },
+    { name = "scipy" },
     { name = "sphinx-argparse" },
     { name = "sphinx-issues" },
     { name = "tskit", specifier = ">=1.0.3" },
@@ -2006,6 +2011,7 @@ test = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
+    { name = "scipy" },
     { name = "tskit", specifier = ">=1.0.3" },
 ]
 
