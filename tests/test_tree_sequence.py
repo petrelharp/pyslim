@@ -964,9 +964,8 @@ class TestReferenceSequence(tests.PyslimTestCase):
                     for k in np.where(node == ts.tables.mutations.node)[0]:
                         mut = ts.mutation(k)
                         if ts.site(mut.site).position == pos:
-                            b = mut_metadata[mut.metadata["derived_states"][0]][
-                                "nucleotide"
-                            ]
+                            j = mut.metadata["derived_states"][-1]
+                            b = mut_metadata[j]["nucleotide"]
                     assert a == b
 
     @pytest.mark.parametrize("recipe", [next(recipe_eq("nucleotides"))], indirect=True)

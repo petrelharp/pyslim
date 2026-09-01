@@ -29,6 +29,7 @@ initialize()
 }
 
 10 late() {
+    sim.demandPhenotype(sim.subpopulations);
     sim.treeSeqOutput(TREES_FILE);
     catn("Done.");
     sim.simulationFinished();

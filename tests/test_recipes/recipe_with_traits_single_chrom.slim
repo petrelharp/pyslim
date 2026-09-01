@@ -12,15 +12,16 @@ initialize() {
 	
 	initializeSex();
 	
-	popgen1T = initializeTrait("popgen1T", "m", c(1.0, 1.1), 0.0, 0.01, directFitnessEffect=T);
-	popgen2T = initializeTrait("popgen2T", "m", c(0.9, 1.0), 0.0, 0.01, directFitnessEffect=T);
+	popgen1T = initializeTrait("popgen1T", "m", 1.0, 0.0, 0.01, directFitnessEffect=T);
+	popgen2T = initializeTrait("popgen2T", "m", 1.0, 0.0, 0.01, directFitnessEffect=T);
 	n1T = initializeTrait("n1T", "m", directFitnessEffect=T);
 	n2T = initializeTrait("n2T", "m", directFitnessEffect=F);
 	
 	quant1T = initializeTrait("quant1T", "a", I1, 0.0, 0.01, directFitnessEffect=F);
 	quant2T = initializeTrait("quant2T", "a", I2, 0.0, 0.01, directFitnessEffect=F);
-	n3T = initializeTrait("n3T", "a", directFitnessEffect=F);
+	n3T = initializeTrait("n3T", "a", directFitnessEffect=F, substitutionAccumulation=F);
 	
+
 	logistic1T = initializeTrait("logistic1T", "l", 0.0, 0.01, 0.01, directFitnessEffect=T);	
 	initializeMutationType("m1", 0.4, "f", 0.0);
 	initializeMutationType("m2", 0.4, "e", 0.05);
@@ -39,26 +40,11 @@ initialize() {
 	
 	c(m2,m3).logMutationData(T, trait=NULL, effectSize=T, dominance=T);
 	
+   initializeMutationRate(1e-3);
 	initializeGenomicElementType("g1", m1, 1.0);
 	initializeGenomicElementType("g2", 1:3, c(3, 1, 2));
-	
-	ids = 1:5;
-	symbols = c(1, 2, "X", "Y", "MT");
-	lengths = rdunif(5, 1e3, 2e3);
-	types = c("A", "A", "X", "Y", "H");
-	names = c("A1", "A2", "X", "Y", "MT");
-	
-	for (id in ids, symbol in symbols, length in lengths, type in types, name in names)
-	{
-		initializeChromosome(id, length, type, symbol, name);
-		initializeMutationRate(1e-3);
-		initializeRecombinationRate(1e-4);
-		
-		if (id == 1)
-			initializeGenomicElement(g1); // autosome 1 is pure-neutral, using only m1
-		else
-			initializeGenomicElement(g2); // others are a mix, using m1 / m2 / m3
-	}
+   initializeGenomicElement(g1, 0, 1000);
+   initializeRecombinationRate(1e-4);
 }
 
 mutation(m2) {

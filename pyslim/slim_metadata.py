@@ -184,17 +184,17 @@ _raw_slim_metadata_schemas = {
                             "description": "The traits defined for this tree sequence; each mutation and individual will have per-trait metadata.",
                             "items": {
                                 "properties": {
-                                    "baselineAccumulation": {
-                                        "description": "Whether the baseline offset includes accumulated effects from fixed (substituted) mutations.",
-                                        "type": "boolean",
-                                    },
-                                    "baselineOffsetFromUser": {
+                                    "baselineOffsetH": {
                                         "type": "number",
-                                        "description": "The from-user component of the baseline offset of the trait.",
+                                        "description": "The baseline offset of the trait, for hermaphrodites.",
                                     },
-                                    "baselineOffsetFromSubstitutions": {
+                                    "baselineOffsetM": {
                                         "type": "number",
-                                        "description": "The from-substitutions component of the baseline offset of the trait.",
+                                        "description": "The baseline offset of the trait, for males.",
+                                    },
+                                    "baselineOffsetF": {
+                                        "type": "number",
+                                        "description": "The baseline offset of the trait, for females.",
                                     },
                                     "directFitnessEffect": {
                                         "description": "Whether the trait's effects are used directly as fitness effects.",
@@ -215,6 +215,22 @@ _raw_slim_metadata_schemas = {
                                     "name": {
                                         "description": "The string name for the trait.",
                                         "type": "string",
+                                    },
+                                    "substitutionAccumulation": {
+                                        "type": "boolean",
+                                        "description": "Whether the substitution offset accumulates effects from fixed (substituted) mutations.",
+                                    },
+                                    "substitutionOffsetH": {
+                                        "type": "number",
+                                        "description": "The substitution offset of the trait, for hermaphrodites.",
+                                    },
+                                    "substitutionOffsetM": {
+                                        "type": "number",
+                                        "description": "The substitution offset of the trait, for males.",
+                                    },
+                                    "substitutionOffsetF": {
+                                        "type": "number",
+                                        "description": "The substitution offset of the trait, for females.",
                                     },
                                     "type": {
                                         "description": "The type of the trait; this must be 'additive', 'multiplicative', or 'logistic'.",
