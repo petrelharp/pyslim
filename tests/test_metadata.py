@@ -6,6 +6,7 @@ import sys
 
 import numpy as np
 import pytest
+import scipy.sparse as sparse
 import tskit
 
 import pyslim
@@ -424,3 +425,102 @@ class TestMultichrom(tests.PyslimTestCase):
         for chrom in chroms.keys():
             assert chrom in chrom_list_d
             assert chrom_list_d[chrom] == chrom_info[chrom]
+
+
+class TestTraits(tests.PyslimTestCase):
+    def node_ind_matrix(self, ts):
+        return sparse.csr_matrix(
+            (
+                np.ones(ts.num_nodes),
+                (
+                    np.arange(ts.num_nodes),
+                    ts.nodes_individual,
+                ),
+            ),
+            shape=(ts.num_nodes, ts.num_individuals),
+        )
+
+    def get_op(self, ts_metadata):
+        types = [m["type"] == "additive" for m in ts_metadata["SLiM"]["traits"]]
+
+        def f(a, b):
+            out = [(x + y if t else x * y) for t, x, y in zip(types, a, b, strict=True)]
+            return out
+
+        return f
+
+    def traits(self, ts, ts_metadata, mut_metadata):
+        op = self.get_op(ts_metadata)
+        num_traits = len(ts_metadata["SLiM"]["traits"])
+        offsets = [m["baselineOffsetFromUser"] for m in ts_metadata["SLiM"]["traits"]]
+        ind_phenotypes = np.column_stack(
+            [
+                ts.tables.individuals.metadata_vector(["per_trait", j, "phenotype"])
+                for j in range(num_traits)
+            ]
+        )
+        for j in range(ts.num_individuals):
+            ind_phenotypes[j, :] = op(ind_phenotypes[j, :], offsets)
+        node_inds = ts.nodes_individual
+        has_ind = np.where(node_inds >= 0)[0]
+        node_inds = node_inds[has_ind]
+        for v in ts.variants(samples=node_inds, isolated_as_missing=False):
+            mut_ids = np.unique(
+                [u for mut in v.site.mutations for u in mut.metadata["derived_states"]]
+            )
+            # these are mut x trait
+            s = np.array(
+                [
+                    [x["effect_size"] for x in mut_metadata[mid]["per_trait"]]
+                    for mid in mut_ids
+                ]
+            )
+            h = np.array(
+                [
+                    [x["dominance"] for x in mut_metadata[mid]["per_trait"]]
+                    for mid in mut_ids
+                ]
+            )
+            hh = np.array(
+                [
+                    [x["hemizygous_dominance"] for x in mut_metadata[mid]["per_trait"]]
+                    for mid in mut_ids
+                ]
+            )
+            ds_ids = [
+                [(-1 if k == "" else int(k)) for k in x.split(",")] for x in v.alleles
+            ]
+            # this is alleles x muts
+            mut_counts = np.array([[a in x for a in mut_ids] for x in ds_ids])
+            # and this, node by allele
+            A = sparse.csr_matrix(
+                (
+                    np.ones(len(v.genotypes)),
+                    (
+                        np.arange(len(v.genotypes)),
+                        v.genotypes,
+                    ),
+                ),
+                shape=(len(v.genotypes), len(ds_ids)),
+            )
+
+    @pytest.mark.parametrize("recipe", recipe_eq("traits"), indirect=True)
+    def test_traits_consistency(self, recipe):
+        trait_md = None
+        slim_traits = {}
+        py_traits = {}
+        for ts in recipe["ts"].values():
+            ts_metaata = ts.metadata
+            # top-level info about traits
+            if trait_md is None:
+                trait_md = ts_metadata["SLiM"]["traits"]
+            assert trait_md == ts_metadata["SLiM"]["traits"]
+            # phenotypes as recorded by SLiM
+            st = [
+                [x["phenotype"] for x in ind.metadata["per_trait"]]
+                for ind in ts.individuals()
+            ]
+            if slim_traits is None:
+                slim_traits[ind.id] = st
+            assert slim_traits == st
+            # now compute them

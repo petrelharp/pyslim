@@ -45,15 +45,15 @@ initialize() {
 	
 	ids = 1:5;
 	symbols = c(1, 2, "X", "Y", "MT");
-	lengths = rdunif(5, 1e7, 2e7);
+	lengths = rdunif(5, 1e3, 2e3);
 	types = c("A", "A", "X", "Y", "H");
 	names = c("A1", "A2", "X", "Y", "MT");
 	
 	for (id in ids, symbol in symbols, length in lengths, type in types, name in names)
 	{
 		initializeChromosome(id, length, type, symbol, name);
-		initializeMutationRate(1e-7);
-		initializeRecombinationRate(1e-8);
+		initializeMutationRate(1e-3);
+		initializeRecombinationRate(1e-4);
 		
 		if (id == 1)
 			initializeGenomicElement(g1); // autosome 1 is pure-neutral, using only m1
