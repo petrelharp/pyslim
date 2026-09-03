@@ -1,0 +1,45 @@
+initialize() {
+   setSeed(23);
+   if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+   initializeSLiMOptions(keepPedigrees=T);
+   initializeTreeSeq(timeUnit="generations");
+
+   initializeSex();
+
+   popgen1T = initializeTrait("popgen1T", "l", 1.0, 0.0, 0.01, directFitnessEffect=T);
+   initializeMutationType("m1", 0.4, "e", 0.05);
+   
+   initializeGenomicElementType("g1", m1, 1.0);
+   
+   symbols = c('1', '2', 'X', 'H');
+   types = c("A", 'A', 'X', 'H');
+   names = c("A1", 'A2', 'X', 'H');
+   ids = seqAlong(names);
+   lengths = rdunif(size(ids), 1e3, 2e3);
+   
+   for (id in ids, symbol in symbols, length in lengths, type in types, name in names)
+   {
+      initializeChromosome(id, length, type, symbol, name);
+      initializeMutationRate(1e-3);
+      initializeRecombinationRate(1e-4);
+      
+      initializeGenomicElement(g1);
+   }
+}
+
+mutation(m1) {
+	// set random dominance effects
+	mut.popgen1TDominance = runif(1);
+	return T;
+}
+
+1 late() {
+   sim.addSubpop("p1", 20);
+}
+
+10 late() {
+    sim.demandPhenotype(sim.subpopulations);
+    sim.treeSeqOutput(TREES_FILE);
+    catn("Done.");
+    sim.simulationFinished();
+}

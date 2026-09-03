@@ -610,9 +610,9 @@ class TestTraits(tests.PyslimTestCase):
                 tc = TraitCalculator(ts)
             else:
                 tc.add_ts(ts)
-        print([ind.metadata["sex"] for ind in ts.individuals()])
         # phenotypes as computed by us
         tc.transform()
+        print([ind.metadata["sex"] for ind in ts.individuals()])
         for k in range(len(tc.types)):
             print(tc.types[k])
             print(
