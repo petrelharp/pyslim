@@ -408,3 +408,68 @@ print(f"SLiM: {np.array([x['phenotype'] for x in ind.metadata['per_trait']])}")
 
 More elegant code would pull the trait types out of top-level metadata
 and use additive or multiplicative effects accordingly, etcetera.
+
+(sec_phenotypes_technical_details)=
+
+## Technical details
+
+You're better off using SLiM to calculate phenotypes
+than doing it yourself in python.
+There's lots of corner cases, and
+phenotypes can even be modified by the SLiM script directly.
+But, there's some situations where it's important to know about those corner cases.
+
+First: phenotypes are determined from the various contributions by
+either a sum ("additive" or "logistic") or a product ("multiplicative").
+Logistic traits are then transformed.
+The contributions come from the global `baselineOffset`,
+from individual offsets, and cumulative mutation effects.
+
+The contribution of 0, 1, or 2 copies of a SLiM mutation to a diploid
+is either 0, 2hs, or 2s (additive) or 1, 1+hs, 1+s (multiplicative),
+where h is the dominance coefficient and s is the effect size.
+For a hemizygous individual, the contributions are the same (for 0 and 1 copies),
+but using the hemizygous dominance coefficient for h.
+For an individual without the chromosome at all, there is no effect (obviously).
+
+Usually, that's all we need to know.
+However, there's some more complications that affect the default trait
+(i.e., the trait you get - called `simT` - if you don't explicitly declare any traits),
+or if you have set up a trait without baseline accumulation
+and with mutations that convert to substitutions.
+This can also be important to understand if you remove fixed mutations in python,
+and then want to read the file back into SLiM:
+to keep phenotypes the same, you have to include the effects of any removed mutations
+that count towards the trait in the `baselineOffset`.
+
+Which mutations count?
+Within SLiM, when a Mutation fixes, it *might* convert into a Substitution.
+Whether this occurs is determined by
+the mutation type's `convertToSubstitution` property,
+which is True by default in WF models and False by default in nonWF models.
+Substitutions are no longer used by SLiM for calculating individual traits,
+and so to retain the effects of fixed mutations,
+sometimes scripts will set `convertToSubstitution=F` if it was not already set.
+Another mechanism to retain these effects is the Trait property `accumulateBaseline`,
+which defaults to True.
+If a trait has `accumulateBaseline=T`, then the effects of any Substitutions
+are accumulated in the "baseline offset", and thus contribute to every individual's
+phenotype. Within SLiM, these effects will appear in the `baselineOffset` property.
+(However, these are *not* included in the `baselineOffset` value that we pull from
+top-level metadata of a tree sequence: see below.)
+The net effect of this is that the contributions of any mutations that fix
+will be included in the phenotype values of all individuals
+as long as `convertToSubstitution=F` for their mutation type,
+or `accumulateBaseline=T` for the trait, or both.
+
+However, the tree sequence does not record whether a given mutation was converted to
+a Substitution or not, and also does not record anything about mutation types,
+including their `convertToSubstitution` property.
+(This is because genome structure is set up before .trees files can be loaded.)
+So, when we find a fixed mutation in the tree sequence, we don't know *a priori*
+if this is a Substitution or not.
+If `accumulateBaseline=T` for the trait
+(information that *is* in the top-level metadata),
+then it doesn't matter, mutations will contribute either way.
+The potentially missing information is in the script: are these mutation types
+converting to substitutions or not?
