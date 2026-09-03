@@ -436,11 +436,10 @@ class TraitCalculator:
     so here's a class that does it.  See below for how to use this.
     """
 
-    def __init__(self, ts):
+    def __init__(self):
         self.ts_metadata = None
         self.slim_phenotypes = None
         self.offsets = None
-        self.add_ts(ts)
 
     def add_ts(self, ts):
         ts_metadata = ts.metadata
@@ -508,9 +507,11 @@ class TraitCalculator:
         )
         if self.offsets is None:
             self.offsets = offsets
-        assert np.all(offsets == self.offsets)
+            # only do offsets if this is the first ts!
+            self.do_offsets()
+        else:
+            assert np.all(offsets == self.offsets)
         self.get_frequencies()
-        self.do_offsets()
         self.do_effects()
 
     def transform(self):
@@ -531,7 +532,7 @@ class TraitCalculator:
         self.frequencies = {}
         for v in self.ts.variants(isolated_as_missing=False):
             freqs = {}
-            for ds, f in v.frequencies().items():
+            for ds, f in v.counts().items():
                 for a in ds.split(","):
                     if a != "":
                         if a not in freqs:
@@ -568,7 +569,9 @@ class TraitCalculator:
             out = True
         else:
             f, convert = freqs[m]
-            out = f == 0 or (f == 1 and convert and not self.accumulates[trait_id])
+            out = f == 0 or (
+                f == self.ts.num_samples and convert and not self.accumulates[trait_id]
+            )
         return out
 
     def additive_effect(self, ind, trait_id, hemizygous):
@@ -634,7 +637,7 @@ class TestTraits(tests.PyslimTestCase):
         trait_md = None
         offsets = None
         slim_phenotypes = None
-        tc = None
+        tc = TraitCalculator()
         for ts in recipe["ts"].values():
             assert ts.num_mutations > 0
             ts_metadata = ts.metadata
@@ -643,10 +646,7 @@ class TestTraits(tests.PyslimTestCase):
                 trait_md = ts_metadata["SLiM"]["traits"]
             assert trait_md == ts_metadata["SLiM"]["traits"]
             # now compute them
-            if tc is None:
-                tc = TraitCalculator(ts)
-            else:
-                tc.add_ts(ts)
+            tc.add_ts(ts)
         # phenotypes as computed by us
         tc.transform()
         print([ind.metadata["sex"] for ind in ts.individuals()])
