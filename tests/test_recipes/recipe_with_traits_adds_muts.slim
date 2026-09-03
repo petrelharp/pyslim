@@ -1,0 +1,49 @@
+initialize() {
+   setSeed(23);
+   if (!exists("TREES_FILE")) defineGlobal("TREES_FILE", "out.trees"); 
+   initializeSLiMOptions(keepPedigrees=T);
+   initializeTreeSeq(timeUnit="generations");
+
+   initializeSex();
+
+   popgen1T = initializeTrait("popgen1T", "l", 1.0, 0.0, 0.0, directFitnessEffect=T);
+   initializeMutationType("m1", 0.4, "e", 0.05);
+   m1.convertToSubstitution = F;
+   
+   initializeGenomicElementType("g1", m1, 1.0);
+   
+   symbols = c('1', '2');
+   types = c("A", 'A');
+   names = c("A1", 'A2');
+   ids = seqAlong(names);
+   lengths = rdunif(size(ids), 1e3, 2e3);
+   
+   for (id in ids, symbol in symbols, length in lengths, type in types, name in names)
+   {
+      initializeChromosome(id, length, type, symbol, name);
+      initializeMutationRate(1e-3);
+      initializeRecombinationRate(1e-4);
+      
+      initializeGenomicElement(g1);
+   }
+}
+
+1 late() {
+   sim.addSubpop("p1", 20);
+}
+
+// 1: late() {
+//     for (chrom in sim.chromosomes) {
+//         inds = p1.individuals;
+//         haps = inds.haplosomesForChromosomes(chrom, includeNulls=F);
+//         mutl = sample(haps, 1 + asInteger(length(haps)/3)).addNewDrawnMutation(m1, rdunif(10, 0, chrom.length-1));
+//     }
+// }
+
+
+10 late() {
+    sim.demandPhenotype(sim.subpopulations);
+    sim.treeSeqOutput(TREES_FILE);
+    catn("Done.");
+    sim.simulationFinished();
+}

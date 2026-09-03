@@ -27,10 +27,23 @@ recipe_specs = {
         "pedigree": True,
         "record_mutations": True,
         "minimal": True,
+        "traits": True,  # just the default
     },
-    "recipe_nonWF_X.slim": {"nonWF": True, "pedigree": True, "X": True, "minimal": True},
-    "recipe_nonWF_Y.slim": {"nonWF": True, "pedigree": True, "Y": True},
-    "recipe_nonWF_H.slim": {"nonWF": True, "pedigree": True, "H": True, "minimal": True},
+    "recipe_nonWF_X.slim": {
+        "nonWF": True,
+        "pedigree": True,
+        "X": True,
+        "minimal": True,
+        "traits": True,
+    },
+    "recipe_nonWF_Y.slim": {"nonWF": True, "pedigree": True, "Y": True, "traits": True},
+    "recipe_nonWF_H.slim": {
+        "nonWF": True,
+        "pedigree": True,
+        "H": True,
+        "minimal": True,
+        "traits": True,
+    },
     "recipe_WF_X.slim": {
         "WF": True,
         "pedigree": True,
@@ -38,6 +51,7 @@ recipe_specs = {
         "nucleotides": True,
         "non-nucleotides": True,
         "X": True,
+        "traits": True,
     },
     "recipe_WF_Y.slim": {
         "WF": True,
@@ -46,6 +60,7 @@ recipe_specs = {
         "nucleotides": True,
         "non-nucleotides": True,
         "Y": True,
+        "traits": True,
     },
     "recipe_WF_H.slim": {
         "WF": True,
@@ -54,6 +69,7 @@ recipe_specs = {
         "nucleotides": True,
         "non-nucleotides": True,
         "H": True,
+        "traits": True,
     },
     "recipe_WF_Z.slim": {
         "WF": True,
@@ -62,6 +78,7 @@ recipe_specs = {
         "nucleotides": True,
         "non-nucleotides": True,
         "Z": True,
+        "traits": True,
     },
     "recipe_WF_W.slim": {
         "WF": True,
@@ -70,6 +87,7 @@ recipe_specs = {
         "nucleotides": True,
         "non-nucleotides": True,
         "W": True,
+        "traits": True,
     },
     "recipe_WF_HF.slim": {
         "WF": True,
@@ -78,6 +96,7 @@ recipe_specs = {
         "nucleotides": True,
         "non-nucleotides": True,
         "HF": True,
+        "traits": True,
     },
     "recipe_WF_HM.slim": {
         "WF": True,
@@ -86,6 +105,7 @@ recipe_specs = {
         "nucleotides": True,
         "non-nucleotides": True,
         "HM": True,
+        "traits": True,
     },
     "recipe_long_nonWF.slim": {"nonWF": True, "long": True},
     "recipe_old_nonWF.slim": {"nonWF": True, "remembered_first": True},
@@ -94,6 +114,7 @@ recipe_specs = {
         "pedigree": True,
         "record_mutations": True,
         "minimal": True,
+        "traits": True,
     },
     "recipe_no_simplify.slim": {"WF": True, "no_simplify": True},
     "recipe_long_WF.slim": {"WF": True, "long": True},
@@ -219,11 +240,30 @@ recipe_specs = {
         "multichrom": True,
         "H-": True,
     },
+    "recipe_with_traits_single_chrom.slim": {
+        "WF": True,
+        "traits": True,
+        "begun_late": True,
+    },
+    "recipe_with_traits_adds_muts.slim": {
+        "WF": True,
+        "traits": True,
+        "begun_late": True,
+        "multichrom": True,
+    },
+    "recipe_with_traits_simple.slim": {
+        "WF": True,
+        "traits": True,
+        "begun_late": True,
+        "multichrom": True,
+        "X": True,
+        "H": True,
+    },
     "recipe_with_traits.slim": {
         "WF": True,
         "traits": True,
-        "multichrom": True,
         "begun_late": True,
+        "multichrom": True,
         "X": True,
         "Y": True,
         "H": True,

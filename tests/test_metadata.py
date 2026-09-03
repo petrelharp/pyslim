@@ -2,7 +2,9 @@
 Test cases for the metadata reading/writing of pyslim.
 """
 
+import dataclasses
 import sys
+from collections import Counter
 
 import numpy as np
 import pytest
@@ -427,100 +429,202 @@ class TestMultichrom(tests.PyslimTestCase):
             assert chrom_list_d[chrom] == chrom_info[chrom]
 
 
-class TestTraits(tests.PyslimTestCase):
-    def node_ind_matrix(self, ts):
-        return sparse.csr_matrix(
-            (
-                np.ones(ts.num_nodes),
-                (
-                    np.arange(ts.num_nodes),
-                    ts.nodes_individual,
-                ),
-            ),
-            shape=(ts.num_nodes, ts.num_individuals),
-        )
+class TraitCalculator:
+    """
+    Calculating phenotypes by hand from metadata takes a good bit of
+    internal state, especially if it's from a multi-chromosome simulation,
+    so here's a class that does it.  See below for how to use this.
+    """
 
-    def get_op(self, ts_metadata):
-        types = [m["type"] == "additive" for m in ts_metadata["SLiM"]["traits"]]
+    def __init__(self, ts):
+        self.ts_metadata = None
+        self.slim_phenotypes = None
+        self.offsets = None
+        self.add_ts(ts)
 
-        def f(a, b):
-            out = [(x + y if t else x * y) for t, x, y in zip(types, a, b, strict=True)]
-            return out
-
-        return f
-
-    def traits(self, ts, ts_metadata, mut_metadata):
-        op = self.get_op(ts_metadata)
-        num_traits = len(ts_metadata["SLiM"]["traits"])
-        offsets = [m["baselineOffsetFromUser"] for m in ts_metadata["SLiM"]["traits"]]
-        ind_phenotypes = np.column_stack(
+    def add_ts(self, ts):
+        ts_metadata = ts.metadata
+        if self.ts_metadata is not None:
+            assert ts_metadata["SLiM"]["traits"] == self.ts_metadata["SLiM"]["traits"]
+        self.ts_metadata = ts_metadata
+        self.ts = ts
+        chrom_type = self.ts_metadata["SLiM"]["this_chromosome"]["type"]
+        self.haploid_chromosome = chrom_type in ("H", "HF", "HM")
+        self.mut_metadata = pyslim.mutation_metadata(ts)
+        self.nodes_vacant = pyslim.nodes_vacant(ts)
+        self.num_traits = len(self.ts_metadata["SLiM"]["traits"])
+        self.types = [m["type"] for m in self.ts_metadata["SLiM"]["traits"]]
+        self.accumulates = [
+            m["baselineAccumulation"] for m in self.ts_metadata["SLiM"]["traits"]
+        ]
+        sp = np.column_stack(
             [
-                ts.tables.individuals.metadata_vector(["per_trait", j, "phenotype"])
-                for j in range(num_traits)
+                self.ts.tables.individuals.metadata_vector(["per_trait", j, "phenotype"])
+                for j in range(self.num_traits)
             ]
         )
-        for j in range(ts.num_individuals):
-            ind_phenotypes[j, :] = op(ind_phenotypes[j, :], offsets)
-        node_inds = ts.nodes_individual
-        has_ind = np.where(node_inds >= 0)[0]
-        node_inds = node_inds[has_ind]
-        for v in ts.variants(samples=node_inds, isolated_as_missing=False):
-            mut_ids = np.unique(
-                [u for mut in v.site.mutations for u in mut.metadata["derived_states"]]
-            )
-            # these are mut x trait
-            s = np.array(
-                [
-                    [x["effect_size"] for x in mut_metadata[mid]["per_trait"]]
-                    for mid in mut_ids
-                ]
-            )
-            h = np.array(
-                [
-                    [x["dominance"] for x in mut_metadata[mid]["per_trait"]]
-                    for mid in mut_ids
-                ]
-            )
-            hh = np.array(
-                [
-                    [x["hemizygous_dominance"] for x in mut_metadata[mid]["per_trait"]]
-                    for mid in mut_ids
-                ]
-            )
-            ds_ids = [
-                [(-1 if k == "" else int(k)) for k in x.split(",")] for x in v.alleles
+        if self.slim_phenotypes is None:
+            self.slim_phenotypes = sp
+        assert np.all(self.slim_phenotypes == sp)
+        # initialize phenotypes where we'll accumulate changes
+        self.phenotypes = np.full(
+            self.slim_phenotypes.shape,
+            [1.0 if t == "multiplicative" else 0.0 for t in self.types],
+            dtype="float",
+        )
+        offsets = np.column_stack(
+            [
+                self.ts.tables.individuals.metadata_vector(["per_trait", j, "offset"])
+                for j in range(self.num_traits)
             ]
-            # this is alleles x muts
-            mut_counts = np.array([[a in x for a in mut_ids] for x in ds_ids])
-            # and this, node by allele
-            A = sparse.csr_matrix(
-                (
-                    np.ones(len(v.genotypes)),
-                    (
-                        np.arange(len(v.genotypes)),
-                        v.genotypes,
-                    ),
-                ),
-                shape=(len(v.genotypes), len(ds_ids)),
-            )
+        )
+        if self.offsets is None:
+            self.offsets = offsets
+        assert np.all(offsets == self.offsets)
+        self.get_frequencies()
+        self.do_offsets()
+        self.do_effects()
 
+    def transform(self):
+        for k, t in enumerate(self.types):
+            if t == "logistic":
+                self.phenotypes[:, k] = 1 / (1 + np.exp(-self.phenotypes[:, k]))
+
+    def get_frequencies(self):
+        # If baselineAccumulation is off, then we'll need to ignore substitutions,
+        # so we need to know which alleles are fixed!
+        self.frequencies = {}
+        for v in self.ts.variants(isolated_as_missing=False):
+            freqs = {}
+            for ds, f in v.frequencies().items():
+                for a in ds.split(","):
+                    if a != "":
+                        freqs.setdefault(a, 0)
+                        freqs[a] += f
+            self.frequencies[v.site.id] = freqs
+
+    def do_offsets(self):
+        for k, t in enumerate(self.types):
+            bO = self.ts_metadata["SLiM"]["traits"][k]["baselineOffsetFromUser"]
+            if t == "multiplicative":
+                self.phenotypes[:, k] *= bO * self.offsets[:, k]
+            else:
+                self.phenotypes[:, k] += bO + self.offsets[:, k]
+
+    def do_effects(self):
+        for ind in self.ts.individuals():
+            ploidy = np.sum(~self.nodes_vacant[ind.nodes])
+            if ploidy == 0:
+                continue
+            else:
+                hemizygous = ploidy == 1
+                for k, t in enumerate(self.types):
+                    if t == "multiplicative":
+                        g = self.multiplicative_effect(ind, k, hemizygous)
+                        self.phenotypes[ind.id, k] *= g
+                    else:
+                        g = self.additive_effect(ind, k, hemizygous)
+                        self.phenotypes[ind.id, k] += g
+
+    def additive_effect(self, ind, trait_id, hemizygous):
+        out = 0.0
+        for v in self.ts.variants(samples=ind.nodes, isolated_as_missing=False):
+            freqs = self.frequencies[v.site.id]
+            a = ",".join([v.alleles[g] for g in v.genotypes])
+            muts = Counter(a.split(","))
+            for m in muts:
+                if (
+                    m == ""
+                    or freqs[m] == 0
+                    or (not self.accumulates[trait_id] and freqs[m] == 1)
+                ):
+                    continue
+                md = self.mut_metadata[int(m)]["per_trait"][trait_id]
+                s = md["effect_size"]
+                if muts[m] == 2:
+                    h = 1
+                else:
+                    assert muts[m] == 1
+                    if self.haploid_chromosome:
+                        h = 1
+                    else:
+                        if hemizygous:
+                            h = md["hemizygous_dominance"]
+                        else:
+                            h = md["dominance"]
+                        if np.isnan(h):
+                            h = 1 / 2
+                out += 2 * h * s
+        return out
+
+    def multiplicative_effect(self, ind, trait_id, hemizygous):
+        out = 1.0
+        for v in self.ts.variants(samples=ind.nodes, isolated_as_missing=False):
+            freqs = self.frequencies[v.site.id]
+            a = ",".join([v.alleles[g] for g in v.genotypes])
+            muts = Counter(a.split(","))
+            for m in muts:
+                if (
+                    m == ""
+                    or freqs[m] == 0
+                    or (not self.accumulates[trait_id] and freqs[m] == 1)
+                ):
+                    continue
+                assert muts[m] > 0 and muts[m] <= 2
+                md = self.mut_metadata[int(m)]["per_trait"][trait_id]
+                s = md["effect_size"]
+                if muts[m] == 2:
+                    h = 1
+                else:
+                    assert muts[m] == 1
+                    if self.haploid_chromosome:
+                        h = 1
+                    elif hemizygous:
+                        h = md["hemizygous_dominance"]
+                    else:
+                        h = md["dominance"]
+                    if np.isnan(h):
+                        # "independent dominance occurs when (1+hs)(1+hs) equals 1+s,
+                        # which occurs when h=(sqrt(1+s)−1)/s"
+                        h = (np.sqrt(1 + s) - 1) / s if s != 0 else 0
+                out *= 1 + h * s
+        return out
+
+
+class TestTraits(tests.PyslimTestCase):
     @pytest.mark.parametrize("recipe", recipe_eq("traits"), indirect=True)
     def test_traits_consistency(self, recipe):
         trait_md = None
-        slim_traits = {}
-        py_traits = {}
+        offsets = None
+        slim_phenotypes = None
+        tc = None
         for ts in recipe["ts"].values():
-            ts_metaata = ts.metadata
+            assert ts.num_mutations > 0
+            ts_metadata = ts.metadata
             # top-level info about traits
             if trait_md is None:
                 trait_md = ts_metadata["SLiM"]["traits"]
             assert trait_md == ts_metadata["SLiM"]["traits"]
-            # phenotypes as recorded by SLiM
-            st = [
-                [x["phenotype"] for x in ind.metadata["per_trait"]]
-                for ind in ts.individuals()
-            ]
-            if slim_traits is None:
-                slim_traits[ind.id] = st
-            assert slim_traits == st
             # now compute them
+            if tc is None:
+                tc = TraitCalculator(ts)
+            else:
+                tc.add_ts(ts)
+        print([ind.metadata["sex"] for ind in ts.individuals()])
+        # phenotypes as computed by us
+        tc.transform()
+        for k in range(len(tc.types)):
+            print(tc.types[k])
+            print(
+                np.column_stack(
+                    [
+                        tc.phenotypes[:, k],
+                        tc.slim_phenotypes[:, k],
+                        tc.phenotypes[:, k] - tc.slim_phenotypes[:, k],
+                    ]
+                )
+            )
+        print(np.max(tc.phenotypes - tc.slim_phenotypes))
+        print(np.min(tc.phenotypes - tc.slim_phenotypes))
+        print(np.sum(tc.phenotypes - tc.slim_phenotypes))
+        assert np.allclose(tc.phenotypes, tc.slim_phenotypes)

@@ -21,7 +21,6 @@ initialize() {
 	quant2T = initializeTrait("quant2T", "a", I2, 0.0, 0.01, directFitnessEffect=F);
 	n3T = initializeTrait("n3T", "a", directFitnessEffect=F, baselineAccumulation=F);
 	
-
 	logistic1T = initializeTrait("logistic1T", "l", 0.0, 0.01, 0.01, directFitnessEffect=T);	
 	initializeMutationType("m1", 0.4, "f", 0.0);
 	initializeMutationType("m2", 0.4, "e", 0.05);
@@ -58,7 +57,7 @@ initialize() {
 		if (id == 1)
 			initializeGenomicElement(g1); // autosome 1 is pure-neutral, using only m1
 		else
-			initializeGenomicElement(g2); // autosome 2 is a mix, using m1 / m2 / m3
+			initializeGenomicElement(g2); // others are a mix, using m1 / m2 / m3
 	}
 }
 
@@ -95,6 +94,7 @@ mutation(m3) {
 
 
 10 late() {
+    sim.demandPhenotype(sim.subpopulations);
     sim.treeSeqOutput(TREES_FILE);
     catn("Done.");
     sim.simulationFinished();

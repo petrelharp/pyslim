@@ -45,7 +45,7 @@ mutation() {
 	muts.setValue(asString(mut.id), m);
 	return T;
 }
-10 late() {
+20 late() {
 	subs = Dictionary();
 	for (mut in sim.substitutions) {
 		nuc = mut.mutationType.nucleotideBased ? mut.nucleotide else "N";
@@ -62,7 +62,7 @@ mutation() {
 }
 
 // OUTPUT/FINISH
-10 late() {
+20 late() {
     sim.treeSeqOutput(TREES_FILE, metadata=MD);
     catn("Done.");
     sim.simulationFinished();

@@ -254,7 +254,7 @@ print(f"SLiM: {np.array([x['phenotype'] for x in ind.metadata['per_trait']])}")
 ```
 
 That looks good! To compare we need to account for floating-point error
-(actually the numbers stored by SLiM and computed by us may differ by $10^{-10}$).
+(actually the numbers stored by SLiM and computed by us may differ by `1e-10` or so).
 
 
 ```{code-cell}
