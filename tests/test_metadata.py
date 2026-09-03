@@ -457,6 +457,34 @@ class TraitCalculator:
         self.accumulates = [
             m["baselineAccumulation"] for m in self.ts_metadata["SLiM"]["traits"]
         ]
+        # to properly do traits in the case where baselineAccumulation=F and there are
+        # mutation types with convertToSubstitution=T then we need to store this in metadata:
+        # (so, this code won't work if this is not present for such traits, which are probably
+        # only the default trait!)
+        if (
+            "user_metadata" in ts_metadata["SLiM"]
+            and "mutation_types" in ts_metadata["SLiM"]["user_metadata"]
+        ):
+            self.mutation_types = {
+                k: v[0]["convertToSubstitution"][0]
+                for k, v in ts_metadata["SLiM"]["user_metadata"]["mutation_types"][
+                    0
+                ].items()
+            }
+        else:
+            # guess T if there just a single trait without baseline accumulation
+            # whose name is simT and this is a WF model
+            # since that describes "default trait"
+            convert = (
+                self.ts_metadata["SLiM"]["model_type"] == "WF"
+                and len(self.ts_metadata["SLiM"]["traits"]) == 1
+                and self.ts_metadata["SLiM"]["traits"][0]["name"] == "simT"
+                and self.ts_metadata["SLiM"]["traits"][0]["baselineAccumulation"]
+                == False
+            )
+            print("convert!", convert)
+            mtypes = set(md["mutation_type"] for md in self.mut_metadata.values())
+            self.mutation_types = {f"m{k}": convert for k in mtypes}
         sp = np.column_stack(
             [
                 self.ts.tables.individuals.metadata_vector(["per_trait", j, "phenotype"])
@@ -490,17 +518,26 @@ class TraitCalculator:
             if t == "logistic":
                 self.phenotypes[:, k] = 1 / (1 + np.exp(-self.phenotypes[:, k]))
 
+    def is_converted(self, a):
+        # is allele a from a convert-to-substitution mutation type?
+        # if we haven't recorded whether or not it's converted, assume T
+        md = self.mut_metadata[int(a)]
+        return self.mutation_types[f"m{md['mutation_type']}"]
+
     def get_frequencies(self):
-        # If baselineAccumulation is off, then we'll need to ignore substitutions,
-        # so we need to know which alleles are fixed!
+        # Fixed mutations count unless they are converted to substitutions
+        # and baseline accumulation is off, so we need to look up both these things:
+        # (frequency, whether they're converted to substitutions) for each mutation.
         self.frequencies = {}
         for v in self.ts.variants(isolated_as_missing=False):
             freqs = {}
             for ds, f in v.frequencies().items():
                 for a in ds.split(","):
                     if a != "":
-                        freqs.setdefault(a, 0)
-                        freqs[a] += f
+                        if a not in freqs:
+                            convert = self.is_converted(a)
+                            freqs[a] = [0, convert]
+                        freqs[a][0] += f
             self.frequencies[v.site.id] = freqs
 
     def do_offsets(self):
@@ -526,6 +563,14 @@ class TraitCalculator:
                         g = self.additive_effect(ind, k, hemizygous)
                         self.phenotypes[ind.id, k] += g
 
+    def skip_mut(self, m, freqs, trait_id):
+        if m == "":
+            out = True
+        else:
+            f, convert = freqs[m]
+            out = f == 0 or (f == 1 and convert and not self.accumulates[trait_id])
+        return out
+
     def additive_effect(self, ind, trait_id, hemizygous):
         out = 0.0
         for v in self.ts.variants(samples=ind.nodes, isolated_as_missing=False):
@@ -533,11 +578,7 @@ class TraitCalculator:
             a = ",".join([v.alleles[g] for g in v.genotypes])
             muts = Counter(a.split(","))
             for m in muts:
-                if (
-                    m == ""
-                    or freqs[m] == 0
-                    or (not self.accumulates[trait_id] and freqs[m] == 1)
-                ):
+                if self.skip_mut(m, freqs, trait_id):
                     continue
                 md = self.mut_metadata[int(m)]["per_trait"][trait_id]
                 s = md["effect_size"]
@@ -564,11 +605,7 @@ class TraitCalculator:
             a = ",".join([v.alleles[g] for g in v.genotypes])
             muts = Counter(a.split(","))
             for m in muts:
-                if (
-                    m == ""
-                    or freqs[m] == 0
-                    or (not self.accumulates[trait_id] and freqs[m] == 1)
-                ):
+                if self.skip_mut(m, freqs, trait_id):
                     continue
                 assert muts[m] > 0 and muts[m] <= 2
                 md = self.mut_metadata[int(m)]["per_trait"][trait_id]
