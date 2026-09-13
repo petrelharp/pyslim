@@ -31,7 +31,7 @@ Release 1.2 goes along with SLiM v6, which introduces support for traits.
 It also changes the format for storing mutation metadata: now this is stored
 in top-level metadata, and the SLiM mutation IDs are now stored in mutation metadata.
 These mutation IDs are also still saved by SLiM as a comma-separated string to the
-derived state of each mutation, but this should not be relied on.
+derived state of each mutation.
 
 1. Each time python evaluates ``ts.metadata`` (e.g., using ``ts.metadata["SLiM"]``)
 a new copy of the metadata dict is decoded and returned. In large SLiM simulations,

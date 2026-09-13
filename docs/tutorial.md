@@ -438,8 +438,8 @@ and (2) move those nucleotides over into the "ancestral state"
 and "derived state" slots of the tree sequence with {func}`convert_alleles`.
 If all your mutations in SLiM were nucleotide mutations, you only need to do (2).
 And, beware that (2) is an irreversible step: if you write the tree sequence
-produced by {func}`convert_alleles` to a file, you can't load that file into SLiM any more.
-So, to do this we'll do:
+produced by {func}`convert_alleles` to a file, you can't load that file into SLiM
+without putting those back somehow. So, to do this we'll do:
 
 ```{code-cell}
 nts = pyslim.generate_nucleotides(ts)
@@ -479,9 +479,11 @@ each "tskit mutation" can represent a superposition of more than one
 "SLiM mutation".
 This is recorded by setting the derived state of the tskit mutation
 to a comma-separated string of SLiM mutation IDs
-(or the empty string, to denote "no mutations").
-So, each SLiM mutation can thus appear in more than one tskit mutation,
-and so the [metadata](sec_metadata) about these is stored in top-level metadata,
+(or the empty string, to denote "no mutations"),
+and the `"derived_states"` entry of the tskit mutation's metadata to this same list.
+(This is redundant, but there are good reasons for it.)
+So, each SLiM mutation can appear in more than one tskit mutation,
+and the [metadata](sec_metadata) about these SLiM mutations is stored in top-level metadata,
 rather than along with the tskit mutations.
 [](sec_tutorial_selected_mutations) has a more in-depth example, but here is a quick overview.
 To print out the information about each SLiM mutation "carried"
@@ -493,14 +495,13 @@ mut_metadata = pyslim.mutation_metadata(ts)
 
 mut = ts.mutation(0)
 for x in mut.metadata["derived_states"]:
+    print(f"SLiM mutation {x}:")
     print(mut_metadata[x])
 ```
 ```{code-cell}
 :tags: ["remove-input"]
-mut_metadata = pyslim.mutation_metadata(ts)
-
-mut = ts.mutation(0)
 for x in mut.metadata["derived_states"]:
+    print(f"SLiM mutation {x}:")
     util.pp(mut_metadata[x])
 ```
 See [](sec_tutorial_selected_mutations) for an example where a tskit mutation

@@ -30,7 +30,7 @@ initialize()
 
 1 late() { 
     // output immediately! Nothing should have changed.
-    md = treeSeqMetadata(TREES_IN, userData=F).getValue("SLiM").getValue("user_metadata");
+    md = treeSeqMetadata(TREES_IN + "/chromosome_A.trees", userData=F).getValue("SLiM").getValue("user_metadata");
     sim.readFromPopulationFile(TREES_IN, subpopMap=SUBPOP_MAP);
     if (PHENOTYPES) sim.demandPhenotype(NULL);
     sim.treeSeqOutput(TREES_FILE, simplify=F, metadata=md);

@@ -517,10 +517,12 @@ def convert_alleles(ts):
     have "" (the empty string) for the ancestral state at each site; this method
     will replace this with the corresponding nucleotide from the reference sequence.
     For mutations, SLiM records the 'derived state' as a SLiM mutation ID; this
-    method will replace this with the nucleotide from the mutation's metadata.
+    method will replace the derived state with the nucleotide from the mutation's
+    metadata.
 
-    This operation is not reversible: since SLiM mutation IDs are lost, the tree
-    sequence will not be able to be read back into SLiM.
+    In SLiM's output the list of mutation IDs is recorded both in each mutation's
+    derived state and metadata, but SLiM uses the derived state for loading files,
+    so the resulting tree sequence will not be loadable by SLiM.
 
     The main purpose of this method is for output: for instance, this code will produce
     a VCF file with nucleotide alleles:
@@ -543,37 +545,37 @@ def convert_alleles(ts):
     has_refseq = ts.has_reference_sequence() and len(ts.reference_sequence.data) > 0
     if not has_refseq:
         raise ValueError("Tree sequence must have a valid reference sequence.")
-    # unfortunately, nucleotide mutations may be stacked (e.g., substitutions
-    # will appear this way) and they don't appear in any particular order;
-    # so we must guess which is the most recent, by choosing the one that
-    # has the largest SLiM time, doesn't appear in the parent list, or has
-    # the lagest SLiM ID.
+    # nucleotide mutations may be stacked (including eg substitutions)
+    # and are in order by SLiM ID (which is ~ time), so we need to find the rightmost
+    # SLiM mutation in each tskit mutation that has a nucleotide
     mut_metadata = mutation_metadata(ts)
     mut_ids = np.array([x["mutation_id"] for x in mut_metadata.values()], dtype="int")
     alleles = np.array([x["nucleotide"] for x in mut_metadata.values()], dtype="int")
-    # mut_inds will map from tskit-mutations to slim-mutations
-    mut_inds = np.array([mut.metadata["derived_states"][0] for mut in ts.mutations()])
-    num_stacked = np.array(
-        [len(mut.metadata["derived_states"]) for mut in ts.mutations()]
-    )
-    mut_inds[num_stacked > 0] = -1
-    for k in np.where(num_stacked > 0)[0]:
-        mut = ts.mutation(k)
-        if mut.parent == tskit.NULL:
-            pids = []
-        else:
-            pids = ts.mutation(mut.parent).metadata["derived_states"]
-        x = [
-            (mut_metadata[i]["slim_time"], i not in pids, i, j)
-            for j, i in enumerate(mut.metadata["derived_states"])
+    # First, do this for the unstacked mutations quickly
+    # mut_index will map from tskit-mutations to slim-mutations
+    mut_index = np.array([mut.metadata["derived_states"][-1] for mut in ts.mutations()])
+    assert np.all(mut_index >= 0), "This should not occur: please file a bug report."
+    nucs = alleles[np.searchsorted(mut_ids, mut_index)]
+    # Now, update those where necessary
+    update = np.where(
+        np.logical_and(
+            nucs < 0,
+            mut_index > 0,
+        )
+    )[0]
+    while len(update) > 0:
+        mut_index[update] -= 1
+        nucs[update] = alleles[np.searchsorted(mut_ids, mut_index[update])]
+        update = update[
+            np.logical_and(
+                nucs[update] < 0,
+                mut_index[update] > 0,
+            )
         ]
-        x.sort()
-        mut_inds[k] = x[-1][2]
-    assert np.all(mut_inds >= 0), "This should not occur: please file a bug report."
-    nuc_inds = alleles[np.searchsorted(mut_ids, mut_inds)]
-    if np.any(nuc_inds == -1):
+
+    if np.any(nucs < 0):
         raise ValueError("All mutations must be nucleotide mutations.")
-    da = np.array(NUCLEOTIDES)[nuc_inds]
+    da = np.array(NUCLEOTIDES)[nucs]
     tables.mutations.packset_derived_state(da)
     k = tables.sites.position.astype("int")
     aa = np.frombuffer(ts.reference_sequence.data.encode("utf-8"), dtype="S1")[k]
@@ -592,19 +594,21 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
     of ts is used if present; if not then a sequence of independent and
     uniformly random nucleotides is generated.
 
-    SLiM stores the nucleotide as an integer in the mutation metadata, with -1 meaning "not
-    a nucleotide mutation". This method assigns nucleotides by stepping through
-    each mutation and picking a random nucleotide uniformly out of the three
-    possible nucleotides that differ from the parental state (i.e., the derived
-    state of the parental mutation, or the ancestral state if the mutation has
-    no parent). If ``keep=True`` (the default), the mutations that already have a
-    nucleotide (i.e., an integer 0-3 in metadata) will not be modified.
+    SLiM stores the nucleotide as an integer in the mutation metadata, as specified by
+    {data}`.NUCLEOTIDES`, and with -1 meaning "not a nucleotide mutation". This
+    method assigns nucleotides by stepping through each mutation and picking a
+    random nucleotide uniformly out of the three possible nucleotides that
+    differ from the parental state (i.e., the derived state of the parental
+    mutation, or the ancestral state if the mutation has no parent). If
+    ``keep=True`` (the default), any mutations that already have a nucleotide
+    (i.e., an integer 0-3 in metadata) will not be modified.
 
     Technical note: in the case of stacked mutations, the SLiM mutation that
-    determines the nucleotide state of the (tskit) mutation is the one with the largest
-    slim_time attribute. This method tries to assign nucleotides so that each mutation
-    differs from the previous state, but this is not always possible in certain
-    unlikely cases.
+    determines the nucleotide state of the (tskit) mutation is the last one in the list
+    of "derived states" in the tskit mutation metadata.  This method tries to
+    assign nucleotides so that each mutation differs from the previous state,
+    but this is not always possible if some mutations already have nucleotides and
+    others do not.
 
     :param tskit.TreeSequence ts: The tree sequence to transform.
     :param bool reference_sequence: A reference sequence, or None to use an existing reference,
@@ -656,8 +660,6 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
             else:
                 pa = states[mut.parent]
                 pds = ts.mutation(mut.parent).metadata["derived_states"]
-            this_da = pa
-            max_time = -np.inf
             for i in mut.metadata["derived_states"]:
                 md = mut_info[i]
                 da = md["nucleotide"]
@@ -668,13 +670,9 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
                         da = sets[pa][rng.integers(3)]
                     md["nucleotide"] = da
                 muts[i] = da
-                # the official nucleotide state is from the SLiM mutation with
-                # the largest slim_time attribute that was not present in the parent
-                # mutation
-                if md["slim_time"] >= max_time and i not in pds:
-                    this_da = da
-                    max_time = md["slim_time"]
-            states[mut.id] = this_da
+            # the official nucleotide state is from the SLiM mutation with a
+            # nucleotide attribute that is last in the list
+            states[mut.id] = da
     ts_metadata["SLiM"]["nucleotide_based"] = True
     ts_metadata["SLiM_mutation_list"] = list(mut_info.values())
     tables.metadata = ts_metadata
@@ -1218,10 +1216,9 @@ def next_slim_mutation_id(ts):
     `next_id` in your :class:`msprime.SLiMv6MutationModel` to be larger than any
     existing mutation IDs. Setting `next_id` equal to the output of this
     function will allow the mutated tree sequence to be read in by SLiM.
-    To do this, recall that the "derived state" of SLiM's mutations are
-    comma-separated strings of mutation IDs; this function just parses all derived
-    states and returns one larger than the largest integer found. It will return an error
-    if it encounters derived states that are not comma-separated strings of integers.
+    To do this, recall that the `derived_states` attribute of each mutation's metadata
+    is a list of SLiM mutation IDs; this function just parses all these metadata entries
+    and returns one larger than the largest integer found.
     """
     max_id = -1
     if ts.num_mutations > 0:
