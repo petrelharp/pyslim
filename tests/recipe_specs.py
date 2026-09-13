@@ -289,6 +289,8 @@ def recipe_eq(*keys, exclude=None):
     Return an iterator over those recipes whose spec contains the specified keys.
     If key is empty, return all of them.
     If exclude is given exclude recipes with the specified keys.
+    Note that instead of using this, we can also parameterize tests
+    with a list of names of recipes!
     """
     if isinstance(exclude, str) or exclude is None:
         exclude = [exclude]

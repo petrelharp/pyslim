@@ -184,18 +184,12 @@ this means the mutations will be of type "m2" in SLiM (and, so you must
 initialize that mutation type in the recipe that loads this tree sequence in).
 
 Now, we'll assign selection coefficients.
-This is easier than in versions of SLiM before 6.0,
-because we simply want to assign each mutation an independent selection coefficient
-Recall that to accomodate mutation stacking in SLiM,
-a mutation metadata entry is in fact a *list* of metadata entries,
-one for each of the SLiM mutations that are stacked at this position.
-The SLiM IDs of these mutations are available (in the same order)
-as a comma-separated list of integers in the derived state of the mutation.
-So, in case some SLiM mutations appear in more than one mutation
-in the tree sequence, we will build a map from SLiM ID to selection coefficient:
-``mut_map[k]`` will give the selection coefficient of the SLiM mutation with
-SLiM mutation ID ``k``.
-
+We simply want to assign each mutation an independent selection coefficient,
+and these selection coefficients (and other metadata about the SLiM mutations)
+are stored in top-level metadata, under the `"SLiM_mutation_list"` key.
+(This is easier than in versions SLiM before v6, when the same SLiM mutation's
+metadata could appear in more than one tskit mutation.) 
+So, we 
 ```{code-cell}
 rng = np.random.default_rng(seed=1234)
 ts_metadata = ots.metadata

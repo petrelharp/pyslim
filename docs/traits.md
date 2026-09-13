@@ -30,14 +30,14 @@ np.random.seed(1234)
 
 # Working with traits and phenotypes
 
-An individual's phenotype for an trait in SLiM is determined from that individual's genetic effects,
+An individual's phenotype for a trait in SLiM is determined from that individual's genetic effects,
 as well as both global and individual-specific "offsets".
 SLiM records in metadata both phenotype and offset, so we can use these (by subtraction, for an additive trait)
 to determine the genetic value.
 We can also compute genetic contributions directly, which can be helpful,
 for instance, to decompose genetic variance from different parts of the genome.
 
-Let's start off with this simulation, which has:
+Let's start off with the simulation below, which has:
 
 - two additive traits,
 - with Gaussian selection on both,
@@ -103,14 +103,20 @@ Counter([int(t) for t in ind_times])
 We can use the helpful `metadata_vector` method of table collections
 to quickly pull out the phenotype and offset vectors:
 ```{code-cell}
+num_traits = 2
 ind_phenotypes = np.column_stack([
     ts.tables.individuals.metadata_vector(["per_trait", j, "phenotype"])
-    for j in (0, 1)
+    for j in range(num_traits)
 ])
 ind_offsets = np.column_stack([
     ts.tables.individuals.metadata_vector(["per_trait", j, "offset"])
-    for j in (0, 1)
+    for j in range(num_traits)
 ])
+```
+For instance, here are the "phenotype" entries for the first five individuals
+(one column per trait):
+```{code-cell}
+ind_phenotypes[:5,:]
 ```
 
 To prepare to make the plots
@@ -127,27 +133,27 @@ df = pd.DataFrame({
 })
 df.head()
 ```
-As noted before, we can get the genetic contributions
-by subtracting the individual-level offsets:
-```{code-cell}
-df['genetic_value1'] = df['phenotype1'] - df['offset1']
-df['genetic_value2'] = df['phenotype2'] - df['offset2']
-```
 Now, here's phenotype distributions across these time slices.
-We can see that the population is moving from its initial condition at (-5, 5)
+We can see that the population is moving from its initial position at (-5, 5)
 towards the optimum at (20, -20):
 ```{code-cell}
 (
     df >> p9.ggplot(p9.aes(x="phenotype1", y="phenotype2", color="time")) 
-    + p9.geom_point(alpha=0.5)
+    + p9.geom_point()
 )
 ```
 That's the phenotypes; it turns out that most of that spread is actually
-"offset", i.e., what's usually called "environmental" noise:
+"offset", i.e., what's usually called "environmental" noise.
+We can get the genetic contributions by subtracting the individual-level offsets:
+```{code-cell}
+df['genetic_value1'] = df['phenotype1'] - df['offset1']
+df['genetic_value2'] = df['phenotype2'] - df['offset2']
+```
+Plotting these, we see the populations have very little genetic variation:
 ```{code-cell}
 (
     df >> p9.ggplot(p9.aes(x="genetic_value1", y="genetic_value2", color="time")) 
-    + p9.geom_point(alpha=0.5)
+    + p9.geom_point()
 )
 ```
 
@@ -158,6 +164,8 @@ That's the phenotypes; it turns out that most of that spread is actually
 Now let's see how to use mutation information to calculate genetic values directly.
 To do this, let's take a simpler example.
 This just has two additive traits, and mutations have independent effects on each trait.
+Both traits are neutral, and so are only affected by drift and are not calculated at all
+by SLiM until we call `demandPhenotype`.
 There are two mutation types; the first is underdominant and the second is additive
 (using the special `NAN` value for {math}`h` to indicate independent dominance).
 
@@ -173,7 +181,7 @@ ts_metadata = ts.metadata
 mut_metadata = pyslim.mutation_metadata(ts)
 ```
 
-For example, here's the first mutation:
+Here's the first mutation:
 ```{code-cell}
 :tags: ["remove-output"]
 mut = ts.mutation(0)
@@ -184,8 +192,11 @@ mut
 util.pp(mut)
 ```
 We can see which SLiM mutation(s) this mutation represents
-by looking up those SLiM mutaiton IDs in the mutation's "derived state"
-(`mut.metadata["derived_states"]`).
+by looking up those SLiM mutation IDs in the mutation's "derived state",
+`mut.metadata["derived_states"]`.
+(As noted [previously](sec_tutorial_mutation_metadata),
+the same information is stored in `mut.derived_state`,
+but we recommend pulling this information out of metadata.)
 Then, we can find information about those SLiM mutations
 in the top-level mutation metadata (here, `mut_metadata`,
 obtained using {func}`.mutation_metadata`).
@@ -203,8 +214,9 @@ which we'll be using below.
 ```{code-cell}
 from collections import Counter
 
-def additive_effect(mut_metadata, a, b, num_traits=2):
-    # here a and b are *string* derived states
+def additive_effect(mut_metadata, a, b):
+    # Here a and b are *string* derived states.
+    num_traits = len(next(iter(mut_metadata.values()))['per_trait'])
     out = np.zeros((num_traits,))
     muts = Counter(a.split(",")) + Counter(b.split(","))
     for m in muts:
@@ -228,7 +240,7 @@ additive_effect(mut_metadata, mut.derived_state, mut.derived_state)
 Using this and {meth}`tskit.TreeSequence.variants`,
 we can compute genetic values for an individual:
 ```{code-cell}
-def additive_genetic_value(ts, mut_metadata, ind, num_traits=2):
+def additive_genetic_value(ts, mut_metadata, ind):
     out = np.zeros((num_traits,))
     for v in ts.variants(samples=ind.nodes):
         x, y = [v.alleles[g] for g in v.genotypes]
@@ -247,7 +259,7 @@ Within SLiM, the `baselineOffsetX` properties
 on initialization of the trait, and contribute to all individual's phenotypes.
 Within SLiM there is also the `substitutionOffsetX` property to consider,
 but since the tree sequence does not distinguish substitutions from other mutations,
-and here we do nothing with the `substitutionOffset`.
+here we do nothing with these.
 (For more on this, see the SLiM manual and [](sec_traits_technical_details).)
 
 Here is a function that finds the offsets for an individual,
@@ -351,26 +363,26 @@ and remembering that while the effects on an additive trait are
 `+(0, h*2*s, 2*s)`, for a multiplicative trait they are
 `*(1, 1+h*s, 1+s)`:
 ```{code-cell}
-def multiplicative_effect(mut_metadata, a, b, num_traits=2):
+def multiplicative_effect(mut_metadata, a, b):
     # here a and b are *string* derived states
-    out = np.ones((num_traits,))
+    num_traits = len(next(iter(mut_metadata.values()))['per_trait'])
+    out = np.zeros((num_traits,))
     muts = Counter(a.split(",")) + Counter(b.split(","))
     for m in muts:
         if m != "":
             md = mut_metadata[int(m)]['per_trait']
-            if muts[m] == 1:
-                for j in range(num_traits):
+            for j in range(num_traits):
+                s = md[j]["effect_size"]
+                if muts[m] == 1:
                     h = md[j]['dominance']
-                    s = md[j]["effect_size"]
                     if np.isnan(h):
                         # "independent dominance occurs when (1+hs)(1+hs) equals 1+s,
                         # which occurs when h=(sqrt(1+s)−1)/s"
                         h = (np.sqrt(1 + s) - 1) / s if s != 0 else 0
                     out[j] *= (1 + h * s)
-            else:
-                assert  muts[m] == 2
-                for j in range(num_traits):
-                    out[j] *= 1 + md[j]["effect_size"]
+                else:
+                    assert  muts[m] == 2
+                    out[j] *= max(0, 1 + s)
     return out
 
 # for instance, a homozygote for the first mutation:
@@ -380,7 +392,7 @@ multiplicative_effect(mut_metadata, mut.derived_state, mut.derived_state)
 
 Genetic values:
 ```{code-cell}
-def multiplicative_genetic_value(ts, mut_metadata, ind, num_traits=2):
+def multiplicative_genetic_value(ts, mut_metadata, ind):
     out = np.ones((num_traits,))
     for v in ts.variants(samples=ind.nodes):
         x, y = [v.alleles[g] for g in v.genotypes]
@@ -426,7 +438,7 @@ Putting this together,
 alive = pyslim.individuals_alive_at(ts, 0)
 ind = ts.individual(alive[0])
 print(f"Ours: {phenotype(ind)}")
-print(f"SLiM: {[x['phenotype'] for x in ind.metadata['per_trait']]}")
+print(f"SLiM: {np.array([x['phenotype'] for x in ind.metadata['per_trait']])}")
 ```
 Happily, these again agree, up to floating point error.
 
@@ -450,13 +462,14 @@ either a sum ("additive" or "logistic") or a product ("multiplicative").
 Logistic traits are then transformed.
 The contributions come from the global `baselineOffsetX` values
 (which one depends on the sex of the individual),
-from individual offsets, and cumulative mutation effects.
+from individual offsets, and from cumulative mutation effects.
 
 The contribution of 0, 1, or 2 copies of a SLiM mutation to a diploid
 is either 0, 2hs, or 2s (additive) or 1, 1+hs, 1+s (multiplicative),
 where h is the dominance coefficient and s is the effect size.
 For a hemizygous individual, the contributions are the same (for 0 and 1 copies),
 but using the hemizygous dominance coefficient for h.
+For haploids, the contributions of 0 or 1 copy is either 0, 2s or 1, 1+s.
 For an individual without the chromosome at all, there is no effect (obviously).
 
 Usually, that's all we need to know.
@@ -495,11 +508,14 @@ if this is a Substitution or not.
 If `substitutionAccumulation=T` for the trait
 (information that *is* in the top-level metadata),
 then it doesn't matter, mutations will contribute either way.
-The potentially missing information is in the script: are these mutation types
+The problematic combination: `substitutionAccumulation=F` and `convertToSubstitution=T` 
+is in most cases biologically undesireable, and only enabled for the default trait
+for historical reasons.
+In any case, the potentially missing information is in the script: are these mutation types
 converting to substitutions or not?
 
 Finally, a note on the `substitutionOffsetX` properties (where `X` is `M`, `F`, or `H`).
 This is where SLiM stores the effect of any substitutions on the traits of
 males, females, and heterozygotes, respectively.
-These are distinct because of the differing effects of fixed effects on individuals
-with 0, 1, or two copies of the chromosome in question.
+These are distinct because of the differing effects of fixed mutations on individuals
+when some individuals have different numbers of copies of a chromosome than other individuals.

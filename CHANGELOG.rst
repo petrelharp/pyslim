@@ -29,7 +29,7 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
 - The SLiM mutation IDs represented by each tskit mutation should no longer be
   read in from the `derived_state` property, but instead from metadata.
   (However, SLiM still writes these out in text to the `derived_state`
-  entry as before.)
+  entry as before, so existing code will continue to work.)
 
 - Previously, `msprime.sim_mutations` with the `msprime.SLiMMutationModel`
   would record SLiM metadata along with each new mutation. However, msprime

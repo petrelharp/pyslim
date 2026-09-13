@@ -58,9 +58,9 @@ def mutation_metadata(ts, check=True, ts_metadata=None):
 
 def mutation_at(ts, node, position, time=None):
     """
-    Finds the mutation present in the genome of ``node`` at ``position``,
-    returning -1 if there is no such mutation recorded in the tree
-    sequence.  Warning: if ``node`` is not actually in the tree sequence
+    Finds the tskit ID of the mutation present in the genome of ``node`` at ``position``,
+    returning -1 if there is no such mutation recorded in the tree sequence.
+    Warning: if ``node`` is not actually in the tree sequence
     (e.g., not ancestral to any samples) at ``position``, then this
     function will return -1, possibly erroneously.  If `time` is provided,
     returns the last mutation at ``position`` inherited by ``node`` that
@@ -68,7 +68,7 @@ def mutation_at(ts, node, position, time=None):
 
     :param int node: The index of a node in the tree sequence.
     :param float position: A position along the genome.
-    :param int time: The time ago that we want the nucleotide, or None,
+    :param int time: The time ago that we want the mutation, or None,
         in which case the ``time`` of ``node`` is used.
 
     :returns: Index of the mutation in question, or -1 if none.
@@ -115,6 +115,10 @@ def nucleotide_at(ts, node, position, time=None, mut_metadata=None):
     at ``position`` inherited by ``node`` that occurred at or before
     ``time`` ago.
 
+    This method uses {func}`.mutation_at`, returning the nucleotide of the last
+    SLiM mutation that has a nucleotide listed in that mutation's list of SLiM
+    mutation IDs in its metadata.
+
     This method uses a dictionary of mutation metadata, computed by
     :meth:`mut_metadata`. This step can be expensive if there are
     many mutations, so this can be pre-computed and passed in as
@@ -127,7 +131,7 @@ def nucleotide_at(ts, node, position, time=None, mut_metadata=None):
     :param dict mut_metadata: If provided, a dictionary mapping
         mutation ID to metadata, as returned by ``pyslim.mutation_metadata(ts)``.
 
-    :returns: Index of the nucleotide in ``NUCLEOTIDES`` (0=A, 1=C, 2=G, 3=T).
+    :returns: Index of the nucleotide in {data}`.NUCLEOTIDES`.
     """
     if not ts.has_reference_sequence():
         raise ValueError("This tree sequence has no reference sequence.")
@@ -137,9 +141,10 @@ def nucleotide_at(ts, node, position, time=None, mut_metadata=None):
     if mut_id == tskit.NULL:
         out = NUCLEOTIDES.index(ts.reference_sequence.data[int(position)])
     else:
-        mut = ts.mutation(mut_id)
-        _, k = max(
-            [(mut_metadata[j]["slim_time"], j) for j in mut.metadata["derived_states"]]
-        )
-        out = mut_metadata[k]["nucleotide"]
+        md = ts.mutation(mut_id).metadata["derived_states"]
+        out = -1
+        for k in md[::-1]:
+            out = mut_metadata[k]["nucleotide"]
+            if out >= 0:
+                break
     return out

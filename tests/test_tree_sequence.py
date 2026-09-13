@@ -147,7 +147,6 @@ class TestNextMutationID(tests.PyslimTestCase):
                 max_mt_id = -1
             assert max_mt_id + 1 == pyslim.next_slim_mutation_id(ts)
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="Issue #412")
     @pytest.mark.parametrize(
         "recipe",
         recipe_eq("adds_mutations", exclude="multichrom"),  # <-- TODO
@@ -964,8 +963,13 @@ class TestReferenceSequence(tests.PyslimTestCase):
                     for k in np.where(node == ts.tables.mutations.node)[0]:
                         mut = ts.mutation(k)
                         if ts.site(mut.site).position == pos:
-                            j = mut.metadata["derived_states"][-1]
-                            b = mut_metadata[j]["nucleotide"]
+                            j = len(mut.metadata["derived_states"]) - 1
+                            k = mut.metadata["derived_states"][j]
+                            b = mut_metadata[k]["nucleotide"]
+                            while j > 0 and b == -1:
+                                j -= 1
+                                k = mut.metadata["derived_states"][j]
+                                b = mut_metadata[k]["nucleotide"]
                     assert a == b
 
     @pytest.mark.parametrize("recipe", [next(recipe_eq("nucleotides"))], indirect=True)
@@ -1106,18 +1110,6 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         ntc.provenances.clear()
         assert tc == ntc
 
-    def scramble_mutations(self, ts):
-        # scramble order of mutations so that the most recent is not always first,
-        # since we don't have a reliable way to get that out of SLiM
-        rng = np.random.default_rng(123)
-        t = ts.dump_tables()
-        t.mutations.clear()
-        for m in ts.mutations():
-            a = rng.permutation(m.metadata["derived_states"])
-            t.mutations.append(m.replace(metadata={"derived_states": list(a)}))
-        t.compute_mutation_parents()
-        return t.tree_sequence()
-
     def test_convert_alleles_errors(self):
         ts = msprime.sim_ancestry(4, sequence_length=10, population_size=10)
         with pytest.raises(ValueError, match="must have a valid reference sequence"):
@@ -1156,14 +1148,48 @@ class TestConvertNucleotides(tests.PyslimTestCase):
             cts = pyslim.convert_alleles(ts)
             self.verify_converted_nucleotides(ts, cts)
 
+    def replace_derived_state(self, ts):
+        """
+        Put the information from metadata back into the derived state column.
+        """
+        t = ts.dump_tables()
+        t.mutations.clear()
+        for m in ts.mutations():
+            ds = ",".join(map(str, m.metadata["derived_states"]))
+            t.mutations.append(m.replace(derived_state=ds))
+        t.sites.clear()
+        for s in ts.sites():
+            t.sites.append(s.replace(ancestral_state=""))
+        return t.tree_sequence()
+
     @pytest.mark.parametrize(
-        "recipe", recipe_eq("nucleotides", exclude="non-nucleotides"), indirect=True
+        "recipe",
+        ["recipe_nucleotides_WF.slim", "recipe_chromosomes_adds_muts.slim"],
+        indirect=True,
     )
-    def test_convert_alleles_scrambled(self, recipe):
-        for _, ts in recipe["ts"].items():
-            ts = self.scramble_mutations(ts)
+    def test_reload_converted(self, recipe, helper_functions, tmp_path):
+        converted = {}
+        for chrom, ts in recipe["ts"].items():
+            # convert alleles
             cts = pyslim.convert_alleles(ts)
-            self.verify_converted_nucleotides(ts, cts)
+            # put the derived state column back (since SLiM uses that)
+            rcts = self.replace_derived_state(cts)
+            converted[chrom] = rcts
+            ts.tables.assert_equals(rcts.tables)
+        # given the tables are equal we don't really need to put them back through slim
+        # but keeping this for the future in which we don't need to replace_derived_state
+        # to read them back into slim
+        multichrom = "multichrom" in recipe
+        if multichrom:
+            slimfile = "restart_nucleotides_WF_chromosomes.slim"
+        else:
+            slimfile = "restart_nucleotides_WF.slim"
+        rcts = helper_functions.run_slim_restart(
+            converted,
+            slimfile,
+            tmp_path,
+            multichrom=multichrom,
+        )
 
     @pytest.mark.parametrize(
         "recipe", recipe_eq("nucleotides", exclude="non-nucleotides"), indirect=True
