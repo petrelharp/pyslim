@@ -1148,20 +1148,6 @@ class TestConvertNucleotides(tests.PyslimTestCase):
             cts = pyslim.convert_alleles(ts)
             self.verify_converted_nucleotides(ts, cts)
 
-    def replace_derived_state(self, ts):
-        """
-        Put the information from metadata back into the derived state column.
-        """
-        t = ts.dump_tables()
-        t.mutations.clear()
-        for m in ts.mutations():
-            ds = ",".join(map(str, m.metadata["derived_states"]))
-            t.mutations.append(m.replace(derived_state=ds))
-        t.sites.clear()
-        for s in ts.sites():
-            t.sites.append(s.replace(ancestral_state=""))
-        return t.tree_sequence()
-
     @pytest.mark.parametrize(
         "recipe",
         ["recipe_nucleotides_WF.slim", "recipe_chromosomes_adds_muts.slim"],
@@ -1172,13 +1158,7 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         for chrom, ts in recipe["ts"].items():
             # convert alleles
             cts = pyslim.convert_alleles(ts)
-            # put the derived state column back (since SLiM uses that)
-            rcts = self.replace_derived_state(cts)
-            converted[chrom] = rcts
-            ts.tables.assert_equals(rcts.tables)
-        # given the tables are equal we don't really need to put them back through slim
-        # but keeping this for the future in which we don't need to replace_derived_state
-        # to read them back into slim
+            converted[chrom] = cts
         multichrom = "multichrom" in recipe
         if multichrom:
             slimfile = "restart_nucleotides_WF_chromosomes.slim"

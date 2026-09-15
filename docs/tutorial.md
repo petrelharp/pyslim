@@ -481,7 +481,6 @@ This is recorded by setting the derived state of the tskit mutation
 to a comma-separated string of SLiM mutation IDs
 (or the empty string, to denote "no mutations"),
 and the `"derived_states"` entry of the tskit mutation's metadata to this same list.
-(This is redundant, but there are good reasons for it.)
 So, each SLiM mutation can appear in more than one tskit mutation,
 and the [metadata](sec_metadata) about these SLiM mutations is stored in top-level metadata,
 rather than along with the tskit mutations.
@@ -506,6 +505,17 @@ for x in mut.metadata["derived_states"]:
 ```
 See [](sec_tutorial_selected_mutations) for an example where a tskit mutation
 carries more than one (stacked) SLiM mutation.
+
+You may have noticed that the same information goes both into the derived state entry
+of a tskit mutation (e.g., `mut.derived_state`) and into the metadata of that
+same mutation (e.g., `mut.metadata["derived_states"]`). The reason for this
+redundancy is that tskit uses the `derived_state` entries (and the
+`ancestral_state` entries of sites) to do VCF output and determine allelic
+identity, and so it's helpful to be able to rewrite these
+(as does {func}`.convert_alleles`; see [](sec_output)).
+In fact, SLiM does not use the `derived_state` entry of tskit mutations
+when it reads in a tree sequence (nor the `ancestral_state` entry of sites);
+the definitive source is in metadata.
 
 
 (sec_extracting_individuals)=
