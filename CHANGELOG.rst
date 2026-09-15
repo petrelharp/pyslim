@@ -27,9 +27,9 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
   returned by `pyslim.mutation_metadata(ts)`.
 
 - The SLiM mutation IDs represented by each tskit mutation should no longer be
-  read in from the `derived_state` property, but instead from metadata.
-  (However, SLiM still writes these out in text to the `derived_state`
-  entry as before, so existing code will continue to work.)
+  read in from the `derived_state` property, but instead from the tskit mutation's
+  metadata. (However, SLiM still writes these out in text to the `derived_state`
+  entry as before.)
 
 - Previously, `msprime.sim_mutations` with the `msprime.SLiMMutationModel`
   would record SLiM metadata along with each new mutation. However, msprime
@@ -48,6 +48,9 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
   in `individual.flags` (rather than `individual.metadata['flags']`).
 
 **Bug fixes:**
+
+- `pyslim.annotate` now has a `num_chromosomes` argument. Previously it could not be
+  easily used to annotate multichromosome simulations with more than 8 chromosomes.
 
 - In some previous versions, converting files produced by a yet-older version of SLiM
   to the previously-current file version dropped some information from metadata:

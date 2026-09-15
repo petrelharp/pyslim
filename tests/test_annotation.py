@@ -1012,6 +1012,47 @@ class TestAnnotate(tests.PyslimTestCase):
         # check for equality, in everything but the last provenance
         verify_slim_restart_equality(in_ts, out_ts, phenotypes=False)
 
+    def test_annotate_chromosomes(self):
+        ts = msprime.sim_ancestry(
+            2,
+            population_size=2,
+            sequence_length=1,
+            recombination_rate=0.001,
+            random_seed=123,
+            ploidy=2,
+        )
+        for n in (1, 8, 23):
+            ats = pyslim.annotate(ts, model_type="nonWF", tick=1, num_chromosomes=n)
+            ms = pyslim.slim_node_metadata_schema(num_chromosomes=n)
+            assert ms == ats.tables.nodes.metadata_schema
+            k = pyslim.is_vacant_num_bytes(n)
+            v = ats.node(0).metadata["is_vacant"]
+            assert len(v) == k
+
+    def test_annotate_traits(self):
+        ts = msprime.sim_ancestry(
+            2,
+            population_size=2,
+            sequence_length=1,
+            recombination_rate=0.001,
+            random_seed=123,
+            ploidy=2,
+        )
+        for n in (1, 8, 23):
+            ats = pyslim.annotate(ts, model_type="nonWF", tick=1, num_traits=n)
+            mts = pyslim.add_mutation_metadata(
+                msprime.sim_mutations(ats, model=msprime.SLiMv6MutationModel(), rate=1.0)
+            )
+            assert mts.num_mutations > 0
+            ms = pyslim.slim_tree_sequence_metadata_schema(num_traits=n)
+            assert ms == mts.metadata_schema
+            md = mts.metadata["SLiM"]["traits"]
+            assert len(md) == n
+            ms = pyslim.slim_individual_metadata_schema(num_traits=n)
+            assert ms == mts.tables.individuals.metadata_schema
+            md = mts.metadata["SLiM_mutation_list"][0]
+            assert len(md["per_trait"]) == n
+
 
 class TestReload(tests.PyslimTestCase):
     """
