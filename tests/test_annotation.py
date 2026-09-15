@@ -159,7 +159,7 @@ class TestAnnotate(tests.PyslimTestCase):
                 assert md["selfing_fraction"] == 0.0
                 assert md["female_cloning_fraction"] == 0.0
                 assert md["male_cloning_fraction"] == 0.0
-                assert md["sex_ratio"] == 0.0
+                assert md["sex_ratio"] == 0.5
                 assert md["bounds_x0"] == 0.0
                 assert md["bounds_x1"] == 1.0
                 assert md["bounds_y0"] == 0.0

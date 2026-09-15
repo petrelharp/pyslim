@@ -47,10 +47,14 @@ https://tskit.dev/pyslim/docs/latest/previous_versions.html
   (`pyslim.INDIVIDUAL_FLAG_MIGRATED`) is now recorded, as `pyslim.INDIVIDUAL_MIGRATED`,
   in `individual.flags` (rather than `individual.metadata['flags']`).
 
+- The default sex ratio for populations is now 0.5 instead of 0.0.
+  (:issue:`339`, :user:`petrelharp`)
+
 **Bug fixes:**
 
 - `pyslim.annotate` now has a `num_chromosomes` argument. Previously it could not be
   easily used to annotate multichromosome simulations with more than 8 chromosomes.
+  (It also now has a `num_traits` argument.)
 
 - In some previous versions, converting files produced by a yet-older version of SLiM
   to the previously-current file version dropped some information from metadata:
