@@ -1125,11 +1125,17 @@ def annotate(
     stage="early",
     reference_sequence=None,
     annotate_mutations=True,
+    num_chromosomes=1,
+    num_traits=1,
 ):
     """
     Takes a tree sequence (as produced by msprime, for instance), and adds in the
     information necessary for SLiM to use it as an initial state, filling in
     mostly default values. Returns a :class:`tskit.TreeSequence`.
+
+    This method sets up a tree sequence for a given number of chromosomes and/or traits
+    (since both of these affect metadata schemas, this is important),
+    but any information about these will need to be added after the fact.
 
     :param tskit.TreeSequence ts: A :class:`tskit.TreeSequence`.
     :param str model_type: SLiM model type: either "WF" or "nonWF".
@@ -1143,6 +1149,8 @@ def annotate(
         equal to ts.sequence_length.
     :param bool annotate_mutations: Whether to replace mutation metadata
         with defaults. (If False, information about mutations is unchanged.)
+    :param int num_chromosomes: The number of chromosomes.
+    :param int num_traits: The number of traits.
     """
     tables = ts.dump_tables()
     annotate_tables(
@@ -1153,6 +1161,8 @@ def annotate(
         stage=stage,
         reference_sequence=reference_sequence,
         annotate_mutations=annotate_mutations,
+        num_chromosomes=num_chromosomes,
+        num_traits=num_traits,
     )
     return tables.tree_sequence()
 
@@ -1165,6 +1175,8 @@ def annotate_tables(
     stage="early",
     reference_sequence=None,
     annotate_mutations=True,
+    num_chromosomes=1,
+    num_traits=1,
 ):
     """
     Does the work of :func:`annotate`, but modifies the tables in place: so,
@@ -1190,7 +1202,9 @@ def annotate_tables(
             "but must be for loading into SLiM: generate mutations with "
             "sim_mutations(..., discrete_genome=True), not simulate()."
         )
-    top_metadata = default_slim_metadata("tree_sequence")["SLiM"]
+    top_metadata = default_slim_metadata(
+        "tree_sequence", num_chromosomes=num_chromosomes, num_traits=num_traits
+    )["SLiM"]
     top_metadata["model_type"] = model_type
     top_metadata["tick"] = tick
     top_metadata["cycle"] = cycle
@@ -1199,11 +1213,13 @@ def annotate_tables(
     if isinstance(md, dict) and "SLiM_mutation_list" in md:
         top_metadata["SLiM_mutation_list"] = md["SLiM_mutation_list"]
     ts_metadata = set_tree_sequence_metadata(tables, **top_metadata)
-    set_metadata_schemas(tables)
-    _annotate_nodes_individuals(tables, age=default_ages)
+    set_metadata_schemas(tables, num_chromosomes=num_chromosomes, num_traits=num_traits)
+    _annotate_nodes_individuals(
+        tables, age=default_ages, num_chromosomes=num_chromosomes, num_traits=num_traits
+    )
     _annotate_populations(tables)
     if annotate_mutations:
-        _annotate_sites_mutations(tables, ts_metadata=ts_metadata)
+        _annotate_sites_mutations(tables, ts_metadata=ts_metadata, num_traits=num_traits)
     if reference_sequence is not None:
         tables.reference_sequence.data = reference_sequence
 
@@ -1235,7 +1251,7 @@ def next_slim_mutation_id(ts):
     return max_id + 1
 
 
-def _annotate_nodes_individuals(tables, age):
+def _annotate_nodes_individuals(tables, age, num_chromosomes=1, num_traits=1):
     """
     Adds to a TableCollection the information relevant to individuals required
     for SLiM to load in a tree sequence, that is found in Node and Individual
@@ -1276,7 +1292,7 @@ def _annotate_nodes_individuals(tables, age):
             else:
                 ind_population[i] = n.population
                 ind_slim_id[i] = 1
-            md = default_slim_metadata("node")
+            md = default_slim_metadata("node", num_chromosomes=num_chromosomes)
             md["slim_id"] = nid
             nid += 1
         else:
@@ -1294,7 +1310,7 @@ def _annotate_nodes_individuals(tables, age):
     ind_flags = tables.individuals.flags
     for j, ind in enumerate(tables.individuals):
         if slim_ind[j]:
-            md = default_slim_metadata("individual")
+            md = default_slim_metadata("individual", num_traits=num_traits)
             md["pedigree_id"] = int(ind_slim_id[j])
             md["subpopulation"] = int(ind_population[j])
             md["age"] = age
@@ -1340,7 +1356,7 @@ def _annotate_populations(tables):
                 tables.populations[j] = p.replace(metadata=md)
 
 
-def _annotate_sites_mutations(tables, ts_metadata):
+def _annotate_sites_mutations(tables, ts_metadata, num_traits=1):
     """
     Adds to a TableCollection the information relevant to mutations required
     for SLiM to load in a tree sequence. This means adding metadata to the
@@ -1361,10 +1377,9 @@ def _annotate_sites_mutations(tables, ts_metadata):
             "metadata; this metadata will be overwritten."
         )
     num_mutations = tables.mutations.num_rows
-    default_mut = default_slim_metadata("mutation_list_entry")
-    slim_time = ts_metadata["SLiM"]["tick"] - np.floor(tables.mutations.time).astype(
-        "int"
-    )
+    default_mut = default_slim_metadata("mutation_list_entry", num_traits=num_traits)
+    t = ts_metadata["SLiM"]["tick"]
+    slim_time = t - np.floor(tables.mutations.time).astype("int")
     mutation_list = [
         {
             "mutation_id": j,

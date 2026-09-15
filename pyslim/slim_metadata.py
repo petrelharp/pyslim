@@ -1885,7 +1885,9 @@ def update_tables(tables):
         # which prior to 0.5 was everything but generation and model_type.
         # Recovering from provenance has also been useful for operations
         # that discard metadata (eg as msprime did prior to 0.7.5).
-        values = default_slim_metadata("tree_sequence")["SLiM"]
+        values = default_slim_metadata("tree_sequence", num_chromosomes=1, num_traits=1)[
+            "SLiM"
+        ]
         prov = None
         file_version = "unknown"
         # use only the last SLiM provenance
@@ -1943,7 +1945,9 @@ def update_tables(tables):
                 "required"
             ]
             tables.metadata_schema = new_schema
-            defaults = default_slim_metadata("tree_sequence", num_traits=num_traits)
+            defaults = default_slim_metadata(
+                "tree_sequence", num_traits=num_traits, num_chromosomes=1
+            )
             for k in new_properties:
                 if k not in md["SLiM"]:
                     if k == "tick":
