@@ -521,8 +521,8 @@ def convert_alleles(ts):
     metadata.
 
     In SLiM's output the list of mutation IDs is recorded both in each mutation's
-    derived state and metadata, but SLiM uses the derived state for loading files,
-    so the resulting tree sequence will not be loadable by SLiM.
+    derived state and metadata, but SLiM only uses the metadata for loading files,
+    so the resulting tree sequence will still be loadable by SLiM.
 
     The main purpose of this method is for output: for instance, this code will produce
     a VCF file with nucleotide alleles:
