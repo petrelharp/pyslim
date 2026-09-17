@@ -252,8 +252,8 @@ class TestAnnotate(tests.PyslimTestCase):
         rmut_info = pyslim.mutation_metadata(rts)
         assert len(mut_info) == len(rmut_info)
         # mutations may have changed order
-        tsm = {m.derived_state: m.metadata["derived_states"] for m in ts.mutations()}
-        rtsm = {m.derived_state: m.metadata["derived_states"] for m in rts.mutations()}
+        tsm = {m.derived_state: m.metadata["slim_ids"] for m in ts.mutations()}
+        rtsm = {m.derived_state: m.metadata["slim_ids"] for m in rts.mutations()}
         for x in tsm:
             assert x in rtsm
             assert tsm[x] == rtsm[x]
@@ -314,7 +314,7 @@ class TestAnnotate(tests.PyslimTestCase):
         t.mutations.metadata_schema = pyslim.slim_metadata_schemas["mutation"]
         t.mutations.clear()
         for j, mut in enumerate(ts.mutations()):
-            t.mutations.append(mut.replace(metadata={"derived_states": [j]}))
+            t.mutations.append(mut.replace(metadata={"slim_ids": [j]}))
         ts = t.tree_sequence()
         ts = pyslim.add_mutation_metadata(ts)
         with pytest.warns(Warning, match="already has.*metadata"):
@@ -1291,7 +1291,7 @@ class TestAddMutationMetadata(tests.PyslimTestCase):
         mut_info = pyslim.mutation_metadata(ts)
         nmut_info = pyslim.mutation_metadata(nsts)
         mut_ids = np.unique(
-            [k for mut in nsts.mutations() for k in mut.metadata["derived_states"]]
+            [k for mut in nsts.mutations() for k in mut.metadata["slim_ids"]]
         )
         assert len(mut_ids) == len(nsts.metadata["SLiM_mutation_list"])
         for k in mut_ids:

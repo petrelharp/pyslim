@@ -370,17 +370,17 @@ _raw_slim_metadata_schemas = {
         "codec": "struct",
         "type": "object",
         "description": "SLiM schema for representing binary derived state data in mutation metadata (the metadata for each unique SLiM mutation is stored in top-level metadata).",
-        "examples": [{"derived_states": [0, 1, 17]}],
+        "examples": [{"slim_ids": [0, 1, 17]}],
         "properties": {
-            "derived_states": {
+            "slim_ids": {
                 "index": 1,
                 "type": "array",
                 "noLengthEncodingExhaustBuffer": True,
-                "description": "An array of SLiM mutation IDs (int64t), representing the (stacked) mutations contained by the derived state for the mutation.",
+                "description": "An array of SLiM mutation IDs (int64t), representing the (stacked) mutations represented by this tskit mutation.",
                 "items": {"binaryFormat": "q", "type": "number"},
             }
         },
-        "required": ["derived_states"],
+        "required": ["slim_ids"],
     },
     "node": {
         "$schema": "http://json-schema.org/schema#",
@@ -831,7 +831,7 @@ def default_slim_metadata(name, num_chromosomes=1, num_traits=1, **kwargs):
     elif name == "site":
         out = None
     elif name == "mutation":
-        out = {"derived_states": []}
+        out = {"slim_ids": []}
     elif name == "mutation_list_entry":
         out = {
             "mutation_id": 0,
@@ -2094,7 +2094,7 @@ def update_tables(tables):
                 muts.metadata_schema = old_schema
             tables.mutations.metadata_schema = slim_metadata_schemas["mutation"]
             for mut in muts:
-                md = {"derived_states": [int(j) for j in mut.derived_state.split(",")]}
+                md = {"slim_ids": [int(j) for j in mut.derived_state.split(",")]}
                 tables.mutations.append(mut.replace(metadata=md))
 
         if file_version == "0.1":

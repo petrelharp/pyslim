@@ -72,7 +72,7 @@ replaces the previous ``type`` argument to {class}`msprime.SLiMMutationModel`.
 to pull this information out of top-level metadata using the SLiM ID as a key.
 In brief, if `mut` is a mutation, then you should replace
 `mut.metadata["mutation_list"][j]`
-with `mut_metadata[mut.metadata["derived_states"][j]]`,
+with `mut_metadata[mut.metadata["slim_ids"][j]]`,
 where `mut_metadata` is the output of {func}`.mutation_metadata`.
 For instance, where before you might have done:
 ```python
@@ -85,7 +85,7 @@ Now, you would do:
 ```{code-cell}
 mut_metadata = pyslim.mutation_metadata(ts)
 mut = ts.mutation(0)
-for k in mut.metadata["derived_states"]:
+for k in mut.metadata["slim_ids"]:
     md = mut_metadata[k]
     print(f"SLiM ID: {k}")
     print(f"Metadata: {md}")

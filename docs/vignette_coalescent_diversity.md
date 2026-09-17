@@ -275,7 +275,7 @@ This runs quickly, since it's only 100 generations.
 First, let's look at what mutations are present.
 ```{code-cell}
 ts = tskit.load("vignette_annotated.trees")
-num_stacked = np.array([len(m.metadata["derived_states"]) for m in ts.mutations()])
+num_stacked = np.array([len(m.metadata["slim_ids"]) for m in ts.mutations()])
 init_time = ts.metadata['SLiM']['tick']
 old_mut = np.array([m.time > init_time - 1 - 1e-12 for m in ts.mutations()])
 assert sum(old_mut) == ots.num_mutations
@@ -311,7 +311,7 @@ p = ts.sample_count_stat(nodes_by_time, lambda x: x/num_nodes, 2, windows='sites
         strict=False, span_normalise=False, polarised=True)
 mut_metadata = pyslim.mutation_metadata(ts)
 s = np.array([sum([sum([mut_metadata[k]["per_trait"][0]["effect_size"]
-                        for k in m.metadata["derived_states"]])
+                        for k in m.metadata["slim_ids"]])
                   for m in site.mutations]) for site in ts.sites()])
 ```
 
@@ -422,7 +422,7 @@ and print a picture of it, with mutations labeled by their type:
 ```{code-cell}
 mut_metadata = pyslim.mutation_metadata(mts)
 for t in mts.trees():
- mt = [max([mut_metadata[k]['mutation_type'] for k in m.metadata["derived_states"]]) for m in t.mutations()]
+ mt = [max([mut_metadata[k]['mutation_type'] for k in m.metadata["slim_ids"]]) for m in t.mutations()]
  if t.num_mutations > 12:
    break
 
@@ -478,26 +478,26 @@ There are indeed:
 :tags: ['remove-output']
 for site in mts.sites():
   if len(site.mutations) > 1:
-     types = [set([mut_metadata[k]["mutation_type"] for k in mut.metadata["derived_states"]])
+     types = [set([mut_metadata[k]["mutation_type"] for k in mut.metadata["slim_ids"]])
               for mut in site.mutations]
      if max(map(len, types)) > 1:
         print(site)
         for mut in site.mutations:
             print(mut)
-            for k in mut.metadata["derived_states"]:
+            for k in mut.metadata["slim_ids"]:
                 print(mut_metadata[k])
 ```
 ```{code-cell}
 :tags: ['remove-input']
 for site in mts.sites():
   if len(site.mutations) > 1:
-     types = [set([mut_metadata[k]["mutation_type"] for k in mut.metadata["derived_states"]])
+     types = [set([mut_metadata[k]["mutation_type"] for k in mut.metadata["slim_ids"]])
               for mut in site.mutations]
      if max(map(len, types)) > 1:
         util.pp(site)
         for mut in site.mutations:
             util.pp(mut)
-            for k in mut.metadata["derived_states"]:
+            for k in mut.metadata["slim_ids"]:
                 util.pp(mut_metadata[k])
 ```
 
