@@ -192,8 +192,8 @@ mut
 util.pp(mut)
 ```
 We can see which SLiM mutation(s) this mutation represents
-by looking up those SLiM mutation IDs in the mutation's "derived state",
-`mut.metadata["derived_states"]`.
+by looking up those SLiM mutation IDs in the mutation's metadata:
+`mut.metadata["slim_ids"]`.
 (As noted [previously](sec_tutorial_mutation_metadata),
 the same information is stored in `mut.derived_state`,
 but we recommend pulling this information out of metadata.)
@@ -201,7 +201,7 @@ Then, we can find information about those SLiM mutations
 in the top-level mutation metadata (here, `mut_metadata`,
 obtained using {func}`.mutation_metadata`).
 ```{code-cell}
-mut_metadata[mut.metadata["derived_states"][0]]
+mut_metadata[mut.metadata["slim_ids"][0]]
 ```
 So, we can use the `effect_size` and `dominance`
 to calculate genetic effects (we won't need `hemizygous dominance`,

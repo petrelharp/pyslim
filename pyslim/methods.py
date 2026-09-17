@@ -431,10 +431,10 @@ def add_mutation_metadata(ts, mutation_type=0, remove_unused=False):
     :class:`msprime.SLiMv6MutationModel`. Any information about SLiM mutations already
     in top-level metadata will remain unchanged.
 
-    To do this, this method looks for all SLiM IDs that are found in the derived
-    state of some mutation but are not represented in the top-level metadata
-    (see :func:`.mutation_metadata`). This function then adds entries to that top-level
-    metadata with default values (see :func:`.default_slim_metadata`),
+    To do this, this method looks for all SLiM IDs that are found in the `"slim_ids"`
+    entry of some tskit mutation's metadata but are not represented in the top-level
+    metadata (see :func:`.mutation_metadata`). This function then adds entries to that
+    top-level metadata with default values (see :func:`.default_slim_metadata`),
     except that (a) the ``mutation_type`` can be specified;
     and (b) the ``slim_time`` is set using the ``tick`` value in top-level metadata
     and the ``time`` of the oldest tskit mutation in which the SLiM mutation occurs.
@@ -442,7 +442,7 @@ def add_mutation_metadata(ts, mutation_type=0, remove_unused=False):
     :param tskit.TreeSequence ts: The tree sequence to transform.
     :param int mutation_type: The numeric ID of the mutation type in SLiM.
     :param bool remove_unused: Whether to also remove from metadata information about any
-        mutations not seen in the derived states of the tree sequence.
+        mutations not referenced by mutations in the tree sequence.
     :return tskit.TreeSequence: A copy of the tree sequence with mutation information in
         metadata.
     """
@@ -460,7 +460,7 @@ def add_mutation_metadata_tables(tables, mutation_type=0, remove_unused=False):
     :param tskit.TableCollection tables: The table collection to be modified.
     :param int mutation_type: The numeric ID of the mutation type in SLiM.
     :param bool remove_unused: Whether to also remove from metadata information about any
-        mutations not seen in the derived states of the tree sequence.
+        mutations not referenced by mutations in the tree sequence.
     """
     ts_metadata = tables.metadata
     if (
@@ -475,9 +475,7 @@ def add_mutation_metadata_tables(tables, mutation_type=0, remove_unused=False):
     num_traits = len(ts_metadata["SLiM"]["traits"])
     existing_muts = {x["mutation_id"] for x in ts_metadata["SLiM_mutation_list"]}
     mut_ids = [
-        (int(j), mut.time)
-        for mut in tables.mutations
-        for j in mut.metadata["derived_states"]
+        (int(j), mut.time) for mut in tables.mutations for j in mut.metadata["slim_ids"]
     ]
     if len(mut_ids) > 0:
         mut_ids.sort()
@@ -516,8 +514,8 @@ def convert_alleles(ts):
     their corresponding nucleotides. For sites, SLiM-produced tree sequences
     have "" (the empty string) for the ancestral state at each site; this method
     will replace this with the corresponding nucleotide from the reference sequence.
-    For mutations, SLiM records the 'derived state' as a SLiM mutation ID; this
-    method will replace the derived state with the nucleotide from the mutation's
+    For mutations, SLiM records the 'derived state' as a list of SLiM mutation IDs;
+    this method will replace the derived state with the nucleotide from the mutation's
     metadata.
 
     In SLiM's output the list of mutation IDs is recorded both in each mutation's
@@ -553,7 +551,7 @@ def convert_alleles(ts):
     alleles = np.array([x["nucleotide"] for x in mut_metadata.values()], dtype="int")
     # First, do this for the unstacked mutations quickly
     # mut_index will map from tskit-mutations to slim-mutations
-    mut_index = np.array([mut.metadata["derived_states"][-1] for mut in ts.mutations()])
+    mut_index = np.array([mut.metadata["slim_ids"][-1] for mut in ts.mutations()])
     assert np.all(mut_index >= 0), "This should not occur: please file a bug report."
     nucs = alleles[np.searchsorted(mut_ids, mut_index)]
     # Now, update those where necessary
@@ -605,7 +603,7 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
 
     Technical note: in the case of stacked mutations, the SLiM mutation that
     determines the nucleotide state of the (tskit) mutation is the last one in the list
-    of "derived states" in the tskit mutation metadata.  This method tries to
+    of "slim_ids" in the tskit mutation metadata.  This method tries to
     assign nucleotides so that each mutation differs from the previous state,
     but this is not always possible if some mutations already have nucleotides and
     others do not.
@@ -659,8 +657,8 @@ def generate_nucleotides(ts, reference_sequence=None, keep=True, seed=None):
                 pds = []
             else:
                 pa = states[mut.parent]
-                pds = ts.mutation(mut.parent).metadata["derived_states"]
-            for i in mut.metadata["derived_states"]:
+                pds = ts.mutation(mut.parent).metadata["slim_ids"]
+            for i in mut.metadata["slim_ids"]:
                 md = mut_info[i]
                 da = md["nucleotide"]
                 if da == -1 or not keep:
@@ -1232,7 +1230,7 @@ def next_slim_mutation_id(ts):
     `next_id` in your :class:`msprime.SLiMv6MutationModel` to be larger than any
     existing mutation IDs. Setting `next_id` equal to the output of this
     function will allow the mutated tree sequence to be read in by SLiM.
-    To do this, recall that the `derived_states` attribute of each mutation's metadata
+    To do this, recall that the `slim_ids` attribute of each mutation's metadata
     is a list of SLiM mutation IDs; this function just parses all these metadata entries
     and returns one larger than the largest integer found.
     """
@@ -1241,7 +1239,7 @@ def next_slim_mutation_id(ts):
         try:
             max_id = functools.reduce(
                 max,
-                (x for mut in ts.mutations() for x in mut.metadata["derived_states"]),
+                (x for mut in ts.mutations() for x in mut.metadata["slim_ids"]),
                 -1,
             )
         except TypeError:

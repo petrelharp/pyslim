@@ -15,7 +15,7 @@ def mutation_metadata(ts, check=True, ts_metadata=None):
     Returns a dictionary whose keys are the numeric SLiM IDs of mutations,
     and whose values are metadata entries for those mutations.
     These SLiM IDs are found in the metadata of tskit mutations:
-    for each mutation ``mut``, as ``mut.metadata["derived_states"]``.
+    for each mutation ``mut``, as ``mut.metadata["slim_ids"]``.
 
     This is a simple extraction function that places the list of metadata entries
     stored in ``ts.metadata["SLiM_mutation_list"]`` in a dictionary
@@ -44,7 +44,7 @@ def mutation_metadata(ts, check=True, ts_metadata=None):
     ml.sort(key=lambda x: x["mutation_id"])
     out = {mut["mutation_id"]: mut for mut in ml}
     if check:
-        ids = {j for mut in ts.mutations() for j in mut.metadata["derived_states"]}
+        ids = {j for mut in ts.mutations() for j in mut.metadata["slim_ids"]}
         for k in ids:
             if k not in out:
                 raise ValueError(
@@ -141,7 +141,7 @@ def nucleotide_at(ts, node, position, time=None, mut_metadata=None):
     if mut_id == tskit.NULL:
         out = NUCLEOTIDES.index(ts.reference_sequence.data[int(position)])
     else:
-        md = ts.mutation(mut_id).metadata["derived_states"]
+        md = ts.mutation(mut_id).metadata["slim_ids"]
         out = -1
         for k in md[::-1]:
             out = mut_metadata[k]["nucleotide"]

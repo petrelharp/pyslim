@@ -56,13 +56,13 @@ def naive_mutation_at(ts, node, pos, time=None):
 
 
 def verify_mutation_metadata(ts):
-    # Verify that all derived states are properly accounted for
+    # Verify that all SLiM mutation IDs are properly accounted for
     # in mutation metadata.
     mdl = ts.metadata["SLiM_mutation_list"]
     mut_info = pyslim.mutation_metadata(ts)
     assert len(mut_info) == len(mdl)
     for mut in ts.mutations():
-        for j in mut.metadata["derived_states"]:
+        for j in mut.metadata["slim_ids"]:
             assert j in mut_info
 
 
@@ -120,9 +120,7 @@ class TestSlimTime(tests.PyslimTestCase):
             stage = "early" if "init_mutated" in recipe else None
             slim_times = pyslim.slim_time(ts, ts.mutations_time, stage=stage)
             for t, mut in zip(slim_times, ts.mutations()):
-                mut_time = max(
-                    [muts[j]["slim_time"] for j in mut.metadata["derived_states"]]
-                )
+                mut_time = max([muts[j]["slim_time"] for j in mut.metadata["slim_ids"]])
                 assert mut_time == t
 
 
@@ -847,7 +845,7 @@ class TestMutationConsistency(tests.PyslimTestCase):
             }
             mut_info = pyslim.mutation_metadata(ts)
             for mut in ts.mutations():
-                for k in mut.metadata["derived_states"]:
+                for k in mut.metadata["slim_ids"]:
                     assert k in debug_info or mut_info[k]["mutation_id"] == 2
                     assert k in mut_info
                     assert debug_info[k]["chromosome_id"] == chrom_id
@@ -963,12 +961,12 @@ class TestReferenceSequence(tests.PyslimTestCase):
                     for k in np.where(node == ts.tables.mutations.node)[0]:
                         mut = ts.mutation(k)
                         if ts.site(mut.site).position == pos:
-                            j = len(mut.metadata["derived_states"]) - 1
-                            k = mut.metadata["derived_states"][j]
+                            j = len(mut.metadata["slim_ids"]) - 1
+                            k = mut.metadata["slim_ids"][j]
                             b = mut_metadata[k]["nucleotide"]
                             while j > 0 and b == -1:
                                 j -= 1
-                                k = mut.metadata["derived_states"][j]
+                                k = mut.metadata["slim_ids"][j]
                                 b = mut_metadata[k]["nucleotide"]
                     assert a == b
 
@@ -1007,7 +1005,7 @@ class TestReferenceSequence(tests.PyslimTestCase):
                 pos = ts.site(mut.site).position
                 if pos > 0 and pos < ts.sequence_length - 1:
                     nmuts += 1
-                    mut_list = [mut_metadata[k] for k in mut.metadata["derived_states"]]
+                    mut_list = [mut_metadata[k] for k in mut.metadata["slim_ids"]]
                     k = np.argmax([u["slim_time"] for u in mut_list])
                     derived_nuc = mut_list[k]["nucleotide"]
                     left_nuc = pyslim.nucleotide_at(
@@ -1055,13 +1053,13 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         mut_info = pyslim.mutation_metadata(ts)
         for mut in ts.mutations():
             slim_muts = {
-                k: v for k, v in mut_info.items() if k in mut.metadata["derived_states"]
+                k: v for k, v in mut_info.items() if k in mut.metadata["slim_ids"]
             }
             if mut.parent == tskit.NULL:
                 parent_slim_ids = []
             else:
                 parent_mut = ts.mutation(mut.parent)
-                parent_slim_ids = parent_mut.metadata["derived_states"]
+                parent_slim_ids = parent_mut.metadata["slim_ids"]
             max_time = max([md["slim_time"] for md in slim_muts.values()])
             any_new = any(
                 [
@@ -1213,7 +1211,7 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         }
         for mut in ts.mutations():
             aa = ts.reference_sequence.data[int(ts.site(mut.site).position)]
-            for i in mut.metadata["derived_states"]:
+            for i in mut.metadata["slim_ids"]:
                 md = mut_info[i]
                 nuc = md["nucleotide"]
                 assert nuc in [0, 1, 2, 3]
@@ -1225,10 +1223,10 @@ class TestConvertNucleotides(tests.PyslimTestCase):
                     assert pyslim.NUCLEOTIDES[nuc] != aa
                 else:
                     mp = ts.mutation(mut.parent)
-                    if mp.metadata["derived_states"] != mut.metadata["derived_states"]:
+                    if mp.metadata["slim_ids"] != mut.metadata["slim_ids"]:
                         assert (ts_muts[mut.parent] != ts_muts[mut.id]) or (
-                            len(mut.metadata["derived_states"])
-                            > 1 + len(mp.metadata["derived_states"])
+                            len(mut.metadata["slim_ids"])
+                            > 1 + len(mp.metadata["slim_ids"])
                         )
 
     @pytest.mark.parametrize("recipe", recipe_eq(exclude="old_mutations"), indirect=True)
@@ -1289,11 +1287,11 @@ class TestConvertNucleotides(tests.PyslimTestCase):
         mut_info2 = pyslim.mutation_metadata(nts2)
         muts1 = {}
         for mut in nts1.mutations():
-            for i in mut.metadata["derived_states"]:
+            for i in mut.metadata["slim_ids"]:
                 md = mut_info1[i]
                 muts1[i] = md["nucleotide"]
         for mut in nts2.mutations():
-            for i in mut.metadata["derived_states"]:
+            for i in mut.metadata["slim_ids"]:
                 md = mut_info2[i]
                 if md["mutation_type"] == 1:
                     assert i in muts1
