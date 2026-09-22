@@ -371,6 +371,27 @@ class TestAnnotate(tests.PyslimTestCase):
         )["default"]
         self.verify_annotated_trees(ts, loaded_ts)
 
+    def test_old_mutations(self, helper_functions, tmp_path):
+        ts = msprime.sim_ancestry(
+            4,
+            population_size=10,
+            sequence_length=10,
+            recombination_rate=0.01,
+            random_seed=100,
+        )
+        slim_ts = pyslim.annotate(ts, model_type="WF", tick=1)
+        mts = msprime.sim_mutations(
+            slim_ts,
+            rate=0.02,
+            model=msprime.SLiMMutationModel(type=1),
+            random_seed=123,
+        )
+        assert mts.num_mutations > 0
+        # some mutations should be nonsensical
+        assert 0 > min([min(mut.metadata["slim_ids"]) for mut in mts.mutations()])
+        with pytest.warns(Warning, match="SLiMv6MutationModel"):
+            pyslim.add_mutation_metadata(mts)
+
     def test_basic_annotation(self, helper_functions, tmp_path):
         for ts in helper_functions.get_msprime_examples():
             tick = 4
