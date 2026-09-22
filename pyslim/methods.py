@@ -478,6 +478,10 @@ def add_mutation_metadata_tables(tables, mutation_type=0, remove_unused=False):
         (int(j), mut.time) for mut in tables.mutations for j in mut.metadata["slim_ids"]
     ]
     if len(mut_ids) > 0:
+        if min([j for j, _ in mut_ids]) < 0:
+            warnings.warn(
+                "Negative mutation ID: do you need to use msprimeSLiMv6MutationModel?"
+            )
         mut_ids.sort()
         mut_ids = np.array(mut_ids, dtype="int")  # floors times
         # remove duplicate IDs, keeping the last (most recent)
