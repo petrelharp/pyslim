@@ -232,8 +232,8 @@ for the window whose recombination rate is given in the second column;
 the final position is given on the last line with a recombination rate of 0
 (it is a failing of this relatively common file format that there's no good
 way to say where the chromosome ends).
-To read this file into SLiM, remove the first and last lines
-and use the `initializeRecombinationRateFromFile()` function in SLiM,
+To read this file into SLiM, remove the last line
+and use the `initializeRecombinationRateFromFile()` function in SLiM (with `skip=1`)
 which by default scales rates by the `1e-8` factor required to convert from
 cM/Mb to crossovers per bp.
 
