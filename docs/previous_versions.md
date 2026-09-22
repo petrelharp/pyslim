@@ -67,6 +67,10 @@ ts = pyslim.add_mutation_metadata(
 ```
 Furthermore, the ``mutation_type`` argument to {func}`.add_mutation_metadata`
 replaces the previous ``type`` argument to {class}`msprime.SLiMMutationModel`.
+If you add (old-style) {class}`msprime.SLiMMutationModel` mutations to an annotated
+tree sequence, then *nothing will fail*, except that you'll get nonsensical
+SLiM mutation IDs (such as -2449958197306327040). This will throw a warning
+on {func}`.add_mutation_metadata`, however.
 
 3. Instead of looking up metadata for mutations in `mut.metadata`, you need
 to pull this information out of top-level metadata using the SLiM ID as a key.
