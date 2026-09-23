@@ -786,10 +786,14 @@ def default_slim_metadata(name, num_chromosomes=1, num_traits=1, **kwargs):
     metadata dictionary: for each such key=value pair the returned dictionary
     has `value` (re)assigned to `key`.
 
+    For top-level ("tree_sequence") metadata, this method does not provide entries
+    for more than one chromosome under the key "chromosomes", since this is
+    considered optional by SLiM.
+
     :param str name: The type of metadata requested.
     :param int num_chromosomes: The number of chromosomes (only relevant for "node").
     :param int num_traits: The number of traits
-        (only relevant for "individual" and "mutation_list_entry").
+        (only relevant for "tree_sequence", "individual" and "mutation_list_entry").
     :rtype dict:
     """
     if name == "tree_sequence":
