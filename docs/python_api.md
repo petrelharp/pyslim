@@ -49,6 +49,8 @@ Here is a quick reference to some of the methods:
   individuals_alive_at
   mutation_metadata
   next_slim_mutation_id
+  mutation_at
+  nucleotide_at
   nodes_vacant
   population_size
   recapitate
@@ -154,6 +156,14 @@ Additionally, ``pyslim`` contains the following methods:
 
 ```{eval-rst}
 .. autofunction::  is_current_version
+```
+
+```{eval-rst}
+.. autofunction::  nucleotide_at
+```
+
+```{eval-rst}
+.. autofunction::  mutation_at
 ```
 
 
