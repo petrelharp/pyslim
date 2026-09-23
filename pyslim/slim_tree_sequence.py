@@ -120,7 +120,7 @@ def nucleotide_at(ts, node, position, time=None, mut_metadata=None):
     mutation IDs in its metadata.
 
     This method uses a dictionary of mutation metadata, computed by
-    :meth:`mut_metadata`. This step can be expensive if there are
+    :meth:`mutation_metadata`. This step can be expensive if there are
     many mutations, so this can be pre-computed and passed in as
     ``mutations``. If not provided, it will be computed.
 
