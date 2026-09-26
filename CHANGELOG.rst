@@ -1,6 +1,9 @@
-********************
-[1.1.2] - 2026-XX-XX
-********************
+**********************
+[1.2.0b1] - 2026-09-26
+**********************
+
+This is a beta release for the upcoming 1.2.0,
+to support the beta release of SLiM v6.
 
 Major update release to support the release of SLiM v6.0. The main update to
 SLiM is support for traits, which accompanied a number of changes to metadata,
